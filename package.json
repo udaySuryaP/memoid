@@ -21,12 +21,14 @@
     "test:integration": "vitest run tests/integration",
     "test:e2e": "corepack pnpm --filter @memoid/web build && node tests/e2e/run.mjs",
     "test:e2e:update": "corepack pnpm --filter @memoid/web build && node tests/e2e/run.mjs --update-snapshots",
+    "traceability:generate": "node --experimental-strip-types scripts/stage7-screen-traceability.ts",
+    "traceability:check": "node --experimental-strip-types scripts/stage7-screen-traceability.ts --check",
     "db:migrate": "tsx packages/db/src/cli.ts migrate",
     "db:status": "tsx packages/db/src/cli.ts status",
     "db:reset": "tsx packages/db/src/cli.ts reset",
     "db:seed": "tsx packages/db/src/cli.ts seed",
     "secrets:scan": "secretlint \"**/*\" --secretlintrc .secretlintrc.json",
-    "qa": "corepack pnpm format:check && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test && corepack pnpm build"
+    "qa": "corepack pnpm format:check && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm traceability:check && corepack pnpm test && corepack pnpm build"
   },
   "devDependencies": {
     "@memoid/db": "workspace:*",

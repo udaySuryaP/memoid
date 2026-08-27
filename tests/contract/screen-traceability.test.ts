@@ -1,6 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-const expected = [
+import {
+  FOUNDATION_ONLY_STATUS,
+  TRACEABILITY_DATA_PATH,
+  TRACEABILITY_FIELDS,
+  TRACEABILITY_MARKDOWN_PATH,
+  renderTraceabilityMarkdown,
+  validateTraceabilityRecords,
+  type TraceabilityRecord,
+} from "../../scripts/stage7-screen-traceability.js";
+
+const EXPECTED_IDS = [
   "AUTH-01",
   "AUTH-02",
   "AUTH-03",
@@ -60,15 +70,154 @@ const expected = [
   "ATT-01",
   "OPS-01",
   "ERR-01",
-];
-describe("Stage 7 traceability", () => {
-  it("preserves all 59 exact IDs once and in order", async () => {
-    const text = await readFile(
-      new URL("../../docs/design/stage7-screen-traceability.md", import.meta.url),
-      "utf8",
+] as const;
+
+const EXPECTED_NAMES: Readonly<Record<(typeof EXPECTED_IDS)[number], string>> = {
+  "AUTH-01": "Account Access",
+  "AUTH-02": "Verify Email",
+  "AUTH-03": "Security Enrollment",
+  "AUTH-04": "Recovery / Security Reset",
+  "ONB-01": "First-run Checkpoint",
+  "PRJ-01": "Projects",
+  "PRJ-02": "Create Project",
+  "GH-01": "GitHub Connection",
+  "GH-02": "Repository Selection",
+  "PRJ-03": "Initial Authority Review",
+  "PRJ-04": "Initialization Status",
+  "PO-01": "Project Overview",
+  "CTX-01": "Current Context",
+  "CTX-02": "Context Record Detail",
+  "CTX-03": "Conflicts View",
+  "CF-01": "Conflict Detail & Resolution",
+  "SRC-01": "Sources",
+  "SRC-02": "Source Detail",
+  "AUTHZ-01": "Source Authority",
+  "AUTHZ-02": "Authority Change",
+  "PROP-01": "Proposal Queue",
+  "PROP-02": "Proposal Review",
+  "PROP-03": "Evidence/Provenance Panel",
+  "PROP-04": "Revalidation",
+  "HIST-01": "History",
+  "HIST-02": "Context Revision Detail",
+  "HIST-03": "Historical Record",
+  "COR-01": "Correction/Restoration",
+  "SRCH-01": "Search",
+  "PACK-01": "Context Delivery Detail",
+  "INT-01": "Integrations",
+  "INT-02": "Add Integration",
+  "INT-03": "MCP Authorization Consent",
+  "INT-04": "Connection Instructions/Status",
+  "INT-05": "Integration Detail",
+  "INT-06": "Edit Project Grants",
+  "DEV-01": "Developer Access",
+  "DEV-02": "Create Credential",
+  "DEV-03": "Secret Reveal",
+  "DEV-04": "Credential Detail",
+  "ACT-01": "Activity/Audit",
+  "ACT-02": "Audit Event Detail",
+  "PSET-01": "Project Settings",
+  "PSET-02": "Repository Replacement",
+  "PSET-03": "Data Management",
+  "EXP-01": "Export",
+  "ARC-01": "Archive Project",
+  "ARC-02": "Restore Project",
+  "DEL-01": "Delete Project",
+  "DEL-02": "Deletion Pending",
+  "ACC-01": "Profile",
+  "ACC-02": "Security",
+  "ACC-03": "Sessions",
+  "ACC-04": "Data & Account",
+  "ACC-05": "Delete Account",
+  "STEP-01": "Step-up Authentication",
+  "ATT-01": "Attention Tray",
+  "OPS-01": "Operation Status",
+  "ERR-01": "Protected Error State",
+};
+
+async function loadSource(): Promise<unknown> {
+  return JSON.parse(await readFile(TRACEABILITY_DATA_PATH, "utf8")) as unknown;
+}
+
+const contract = { expectedIds: EXPECTED_IDS, expectedNames: EXPECTED_NAMES } as const;
+
+describe("Stage 7 traceability contract", () => {
+  it("contains the exact canonical 59-ID set once and in order", async () => {
+    const records = validateTraceabilityRecords(await loadSource(), contract);
+    const ids = records.map(({ id }) => id);
+
+    expect(records).toHaveLength(59);
+    expect(ids).toEqual(EXPECTED_IDS);
+    expect(new Set(ids)).toHaveLength(59);
+  });
+
+  it("maps every ID to its exact canonical Stage 7 screen name", async () => {
+    const records = validateTraceabilityRecords(await loadSource(), contract);
+
+    for (const id of EXPECTED_IDS) {
+      expect(records.find((record) => record.id === id)?.canonicalName).toBe(EXPECTED_NAMES[id]);
+    }
+  });
+
+  it("requires every traceability field and the exact foundation-only status", async () => {
+    const records = validateTraceabilityRecords(await loadSource(), contract);
+
+    for (const record of records) {
+      for (const field of TRACEABILITY_FIELDS) {
+        expect(record[field].trim(), `${record.id}.${field}`).not.toBe("");
+      }
+      expect(record.status).toBe(FOUNDATION_ONLY_STATUS);
+    }
+  });
+
+  it("keeps the Markdown generated from the machine-readable source", async () => {
+    const records = validateTraceabilityRecords(await loadSource(), contract);
+    const markdown = await readFile(TRACEABILITY_MARKDOWN_PATH, "utf8");
+
+    expect(markdown).toBe(await renderTraceabilityMarkdown(records));
+    expect(markdown.match(/^\|\s+[A-Z]+-\d{2}\s+\|/gm)).toHaveLength(59);
+  });
+
+  it("rejects duplicate, missing, and extra IDs", async () => {
+    const records = validateTraceabilityRecords(await loadSource(), contract);
+    const duplicate = structuredClone(records);
+    duplicate[58] = { ...duplicate[58]!, id: duplicate[57]!.id };
+    const missing = records.slice(0, -1);
+    const extra = [...records, { ...records[0]!, id: "EXTRA-01", canonicalName: "Extra Screen" }];
+
+    expect(() => validateTraceabilityRecords(duplicate, contract)).toThrow(
+      /Duplicate screen IDs: OPS-01/,
     );
-    const actual = [...text.matchAll(/^\|\s+([A-Z]+-\d{2})\s+\|/gm)].map((m) => m[1]);
-    expect(actual).toEqual(expected);
-    expect(new Set(actual).size).toBe(59);
+    expect(() => validateTraceabilityRecords(missing, contract)).toThrow(/Missing: ERR-01/);
+    expect(() => validateTraceabilityRecords(extra, contract)).toThrow(/Extra: EXTRA-01/);
+  });
+
+  it("rejects semantically swapped ID/name mappings", async () => {
+    const records = validateTraceabilityRecords(await loadSource(), contract);
+    const swapped = structuredClone(records) as TraceabilityRecord[];
+    const authority = swapped.find((record) => record.id === "PRJ-03")!;
+    const initialization = swapped.find((record) => record.id === "PRJ-04")!;
+    [authority.canonicalName, initialization.canonicalName] = [
+      initialization.canonicalName,
+      authority.canonicalName,
+    ];
+
+    expect(() => validateTraceabilityRecords(swapped, contract)).toThrow(
+      "PRJ-03 must map to canonical screen name Initial Authority Review; received Initialization Status.",
+    );
+  });
+
+  it("rejects missing fields and any status that implies product implementation", async () => {
+    const records = validateTraceabilityRecords(await loadSource(), contract);
+    const missingPurpose = structuredClone(records) as TraceabilityRecord[];
+    missingPurpose[0]!.purpose = "";
+    const implemented = structuredClone(records) as TraceabilityRecord[];
+    implemented[0]!.status = "IMPLEMENTED";
+
+    expect(() => validateTraceabilityRecords(missingPurpose, contract)).toThrow(
+      /requires non-empty field purpose/,
+    );
+    expect(() => validateTraceabilityRecords(implemented, contract)).toThrow(
+      /must use the exact Stage 8B status NOT IMPLEMENTED — FOUNDATION ONLY/,
+    );
   });
 });
