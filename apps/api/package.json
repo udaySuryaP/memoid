@@ -1,0 +1,22 @@
+{
+  "name": "@memoid/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@memoid/config": "workspace:*",
+    "@memoid/contracts": "workspace:*",
+    "@memoid/observability": "workspace:*",
+    "fastify": "5.12.1"
+  },
+  "devDependencies": {
+    "tsx": "4.23.12",
+    "typescript": "6.0.3"
+  }
+}

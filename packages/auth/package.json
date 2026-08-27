@@ -1,0 +1,13 @@
+{
+  "name": "@memoid/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@memoid/application": "workspace:*",
+    "@workos-inc/node": "10.11.0"
+  }
+}
