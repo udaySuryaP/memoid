@@ -1,0 +1,24 @@
+{
+  "name": "@memoid/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@memoid/ui": "workspace:*",
+    "geist": "1.7.2",
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "typescript": "6.0.3"
+  }
+}

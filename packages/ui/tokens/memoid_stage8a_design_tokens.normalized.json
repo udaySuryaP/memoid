@@ -1,0 +1,75 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "meta": {
+    "source": "Stage 8A conceptual contract",
+    "normalizedBy": "Stage 8B",
+    "correction": "Added semantic.text.subtle=#6B7280 explicitly."
+  },
+  "primitive": {
+    "color": {
+      "graphite": { "950": "#17191D", "700": "#344054", "600": "#667085", "500": "#6B7280" },
+      "neutral": {
+        "0": "#FFFFFF",
+        "25": "#FBFBFC",
+        "50": "#F6F7F9",
+        "200": "#E4E7EC",
+        "300": "#CFD4DC"
+      },
+      "cobalt": { "600": "#315CF4" },
+      "green": { "700": "#16794A", "50": "#EDF9F2" },
+      "amber": { "800": "#9A6700", "50": "#FFF7DF" },
+      "orange": { "700": "#B54708", "50": "#FFF2E8" },
+      "red": { "700": "#B42318", "50": "#FFF0EE" },
+      "violet": { "700": "#6941C6", "50": "#F4F0FF" },
+      "blue": { "700": "#175CD3", "50": "#EFF4FF" }
+    },
+    "space": {
+      "1": "4px",
+      "2": "8px",
+      "3": "12px",
+      "4": "16px",
+      "5": "20px",
+      "6": "24px",
+      "8": "32px",
+      "10": "40px",
+      "12": "48px",
+      "16": "64px"
+    },
+    "radius": { "sm": "6px", "md": "8px", "lg": "12px" }
+  },
+  "semantic": {
+    "surface": {
+      "canvas": "{primitive.color.neutral.50}",
+      "primary": "{primitive.color.neutral.0}",
+      "subtle": "{primitive.color.neutral.25}"
+    },
+    "text": {
+      "primary": "{primitive.color.graphite.950}",
+      "secondary": "{primitive.color.graphite.600}",
+      "subtle": "{primitive.color.graphite.500}"
+    },
+    "border": {
+      "default": "{primitive.color.neutral.200}",
+      "strong": "{primitive.color.neutral.300}"
+    },
+    "focus": "{primitive.color.cobalt.600}",
+    "status": {
+      "success": { "text": "{primitive.color.green.700}", "surface": "{primitive.color.green.50}" },
+      "warning": { "text": "{primitive.color.amber.800}", "surface": "{primitive.color.amber.50}" },
+      "conflict": {
+        "text": "{primitive.color.orange.700}",
+        "surface": "{primitive.color.orange.50}"
+      },
+      "danger": { "text": "{primitive.color.red.700}", "surface": "{primitive.color.red.50}" },
+      "special": {
+        "text": "{primitive.color.violet.700}",
+        "surface": "{primitive.color.violet.50}"
+      },
+      "info": { "text": "{primitive.color.blue.700}", "surface": "{primitive.color.blue.50}" }
+    }
+  },
+  "component": {
+    "button": { "primaryBackground": "{semantic.focus}", "radius": "{primitive.radius.md}" },
+    "field": { "border": "{semantic.border.default}", "error": "{semantic.status.danger.text}" }
+  }
+}

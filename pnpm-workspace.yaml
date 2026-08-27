@@ -1,0 +1,24 @@
+packages:
+  - apps/*
+  - packages/*
+
+allowBuilds:
+  "@next/swc-win32-x64-msvc": true
+  esbuild: true
+  protobufjs: false
+
+minimumReleaseAgeExclude:
+  - "@aws-sdk/client-kms@3.1119.0"
+  - "@aws-sdk/client-s3@3.1119.0"
+  - "@secretlint/config-creator@13.0.5"
+  - "@secretlint/config-loader@13.0.5"
+  - "@secretlint/core@13.0.5"
+  - "@secretlint/formatter@13.0.5"
+  - "@secretlint/node@13.0.5"
+  - "@secretlint/profiler@13.0.5"
+  - "@secretlint/resolver@13.0.5"
+  - "@secretlint/secretlint-rule-preset-recommend@13.0.5"
+  - "@secretlint/source-creator@13.0.5"
+  - "@secretlint/types@13.0.5"
+  - "@secretlint/walker@13.0.5"
+  - secretlint@13.0.5

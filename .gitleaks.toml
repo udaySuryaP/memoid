@@ -1,0 +1,7 @@
+title = "Memoid gitleaks configuration"
+[extend]
+useDefault = true
+[[allowlists]]
+description = "Documented, unmistakably synthetic local-only placeholders"
+paths = ['''\.env\.example$''', '''infra/postgres/init/''']
+regexes = ['''synthetic-(app|admin)-password''']
