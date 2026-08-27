@@ -5,6 +5,7 @@ on:
     branches: [main]
 permissions:
   contents: read
+  pull-requests: read
 jobs:
   secrets-and-supply-chain:
     runs-on: ubuntu-latest
@@ -22,12 +23,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm secrets:scan
-      - run: pnpm audit --audit-level high
+      - run: pnpm audit --audit-level moderate
       - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   dependency-review:
-    if: github.event_name == 'pull_request'
+    # Private personal repositories require GitHub Advanced Security for this
+    # API. Enable the repository variable after that capability is available.
+    if: github.event_name == 'pull_request' && vars.ENABLE_DEPENDENCY_REVIEW == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
