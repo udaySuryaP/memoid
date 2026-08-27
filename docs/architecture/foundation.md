@@ -5,3 +5,5 @@ Memoid is a TypeScript modular monolith with independently started web, API, and
 The web runtime is Next.js App Router. The API is Fastify. The worker hosts pg-boss consumers. PostgreSQL is authoritative; Kysely owns forward migrations. Tenant data access must run inside a transaction using transaction-local `memoid.tenant_id`, with forced RLS as the database backstop.
 
 This stage contains synthetic probes only. It does not define Memoid product entities, routes, tools, sync logic, exports, or destructive behavior.
+
+Consequential accepted decisions, including provisional and proof-gated boundaries, are indexed in `docs/decisions/README.md`.

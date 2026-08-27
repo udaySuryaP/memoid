@@ -22,6 +22,8 @@ jobs:
           node-version: 24.18.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm test:security
+      - run: pnpm sast
       - run: pnpm secrets:scan
       - run: pnpm audit --audit-level moderate
       - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2

@@ -5,7 +5,12 @@
 - Logs redact authorization, cookies, passwords, tokens, secrets, API keys, and private keys.
 - Tenant SQL uses a transaction-local tenant context; forced RLS is tested with one reused pool.
 - The application role neither owns tenant tables nor has `BYPASSRLS`.
-- CI runs secret scans, lockfile verification, a moderate-threshold dependency audit, pinned actions, and least-privilege permissions.
-- GitHub dependency review is present but gated by the `ENABLE_DEPENDENCY_REVIEW` repository variable because GitHub Advanced Security does not expose the dependency-review API to this private personal repository. Enable it after moving the repository to a plan that supports the API.
+- `pnpm test:security` runs the foundation security tests independently from the generic suite.
+- `pnpm sast` runs a pinned, curated `eslint-plugin-security` JavaScript/TypeScript static scan at error severity. The Security workflow fails on a finding or scanner error.
+- CI runs the dedicated security tests, SAST, Secretlint, lockfile verification, a moderate-threshold dependency audit, gitleaks, pinned actions, and least-privilege permissions.
+- CodeQL is preferred when supported, but private-repository code scanning is unavailable to this personal repository under its current plan/ownership model. **SAST remains required.**
+- GitHub dependency review is present but gated by the `ENABLE_DEPENDENCY_REVIEW` repository variable because the dependency-review API is unavailable to this private personal repository. Enable it only after the repository has an eligible organization plan plus GitHub Code Security.
+
+See `docs/governance/repository.md` for the verified plan boundaries and manual merge control.
 
 These synthetic examples are not a product threat model. Product authorization and deletion semantics remain outside Stage 8B.
