@@ -5,7 +5,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: [["list"], ["html", { open: "never" }]],
-  snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}-{projectName}{ext}",
+  snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}-{projectName}-{platform}{ext}",
   expect: { toHaveScreenshot: { animations: "disabled", maxDiffPixelRatio: 0.01 } },
   use: {
     baseURL: "http://127.0.0.1:3000",
