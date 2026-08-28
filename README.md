@@ -1,6 +1,6 @@
 # Memoid
 
-Memoid is a source-aware context control plane for AI-native software projects. It is intended to maintain a reviewed, provenance-linked representation of project context while respecting the authority of repositories and other underlying Sources.
+Memoid is a source-aware context control plane for AI-native software projects. Its primary founder-directed product loop is durable cross-AI Project-context continuity: an authorized client resumes with a task-specific qualified Context Pack, the user works, an explicit checkpoint submits meaningful Candidate Evidence, Memoid reconciles it into Working Context, and the Project review policy controls whether eligible changes become Reviewed Durable Context. GitHub is complementary authoritative Source evidence for applicable implementation facts, not the primary product loop.
 
 Memoid is **not market-validated**. Stage 2 concluded **DO NOT BUILD / KILL** because the tested competent repository-native baseline did not justify an additional maintained context layer. Full development continues only because the founder issued a locked **BUILD FULL PRODUCT** override. That execution decision does not reverse or soften the evidence.
 
@@ -10,10 +10,12 @@ Memoid is **not market-validated**. Stage 2 concluded **DO NOT BUILD / KILL** be
 - Stage 8C: **COMPLETE — HQ RECONCILED**.
 - Stage 9: **COMPLETE — PASS AFTER STAGE 9A CORRECTIONS — HQ RECONCILED**.
 - Stage 9A: **COMPLETE — HQ RECONCILED**.
-- Stage 9B: **ACTIVE — FINAL PROJECT INTEGRITY AND CONTINUITY GATE**.
-- Stage 10: **BLOCKED UNTIL STAGE 9B HQ RECONCILIATION**.
+- Stage 9B: **COMPLETE — HQ RECONCILED**.
+- Stage 9C: **COMPLETE — HQ RECONCILED WITH CLARIFICATIONS**.
+- Stage 9D: **ACTIVE — REPOSITORY IMPLEMENTATION-CONTRACT SYNCHRONIZATION**.
+- Stage 10/10A: **BLOCKED UNTIL STAGE 9D HQ RECONCILIATION AND EXPLICIT HQ RE-AUTHORIZATION**.
 
-This repository therefore contains a production-oriented, non-feature foundation only. It does not implement Projects, Sources, Context Records, Change Proposals, reconciliation, Context Revisions, Context Packs, product MCP tools, authentication flows, export, archive/delete, or the product database schema.
+This repository therefore contains a production-oriented, non-feature foundation and repository-native implementation contract only. It does not implement Projects, Sources, Candidate Submissions, Working Context, Context Records, Change Proposals, reconciliation, Context Revisions, Context Packs, product MCP tools, authentication flows, export, archive/delete, or the product database schema.
 
 ## Architecture foundation
 
@@ -24,6 +26,10 @@ This repository therefore contains a production-oriented, non-feature foundation
 - MCP v2 split SDK packages with remote Streamable HTTP as the hosted adapter direction.
 - Read-only GitHub App using selective Source ingestion; no durable repository mirror.
 - Ordinary external MCP/API machine clients cannot trigger Source refresh or synchronization in V1. Source synchronization is Memoid/server-controlled.
+- Source Observation, Candidate Submission, Working Context, and Reviewed Durable Context are separate integrity planes and must remain visibly and semantically distinguishable.
+- `MANUAL` is the fail-safe/default Project review policy; `AUTOMATIC` is explicit and may only apply changes the Memoid policy engine positively proves eligible. A model never approves itself.
+- A checkpoint request authorizes submission of extracted candidate material; it does not confirm every AI-inferred assertion. Candidate-origin/confirmation provenance must be preserved.
+- Successfully accepted checkpoints remain available as explicitly lower-trust pending/unreconciled continuity during model-provider failure after deterministic authorization, validation, secret scanning, minimization, and qualification.
 - PostgreSQL full-text retrieval and pg-boss; no Redis, vector database, or embeddings in initial V1.
 - Render, S3/KMS, OpenTelemetry, and Grafana directions, with proof-gated details recorded in the ADRs.
 
@@ -98,6 +104,6 @@ The canonical product specification and master roadmap outrank repository guidan
 
 **feature branch → CI/security → pull request → HQ review → merge**
 
-Do not work directly on `main`, treat the founder override as market validation, or begin a later stage without explicit HQ authorization. Current GitHub plan limitations and the required pre-collaboration enforcement upgrades are recorded in [repository governance](./docs/governance/repository.md).
+Do not work directly on `main`, treat the founder override as market validation, merge the Stage 9D PR without HQ authorization, or begin Stage 10/10A before Stage 9D is HQ-reconciled and HQ explicitly re-authorizes implementation. Current GitHub plan limitations and the required pre-collaboration enforcement upgrades are recorded in [repository governance](./docs/governance/repository.md).
 
 Coding agents should start with [AGENTS.md](./AGENTS.md).

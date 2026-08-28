@@ -2,7 +2,7 @@
 
 Status checked: 2026-08-28. Repository: private, personal-account-owned `udaySuryaP/memoid`.
 
-Stage state: Stage 8B **COMPLETE — HQ RECONCILED AFTER CORRECTION**; Stage 8C **COMPLETE — HQ RECONCILED**; Stage 9 **COMPLETE — PASS AFTER STAGE 9A CORRECTIONS**; Stage 9A **COMPLETE — HQ RECONCILED**; Stage 9B **ACTIVE — FINAL PROJECT INTEGRITY AND CONTINUITY GATE**; Stage 10 **BLOCKED UNTIL STAGE 9B HQ RECONCILIATION**.
+Stage state: Stage 8B **COMPLETE — HQ RECONCILED AFTER CORRECTION**; Stage 8C **COMPLETE — HQ RECONCILED**; Stage 9 **COMPLETE — PASS AFTER STAGE 9A CORRECTIONS**; Stage 9A **COMPLETE — HQ RECONCILED**; Stage 9B **COMPLETE — HQ RECONCILED**; Stage 9C **COMPLETE — HQ RECONCILED WITH CLARIFICATIONS**; Stage 9D **ACTIVE — REPOSITORY IMPLEMENTATION-CONTRACT SYNCHRONIZATION**; Stage 10/10A **BLOCKED UNTIL STAGE 9D HQ RECONCILIATION AND EXPLICIT HQ RE-AUTHORIZATION**.
 
 ## Current limitation
 
@@ -30,7 +30,9 @@ Until repository-native enforcement is available, the mandatory founder-only con
 
 **feature branch → CI/security → pull request → HQ review → merge**
 
-The PR must remain unmerged until CI and Security are green and HQ explicitly authorizes merge. Direct work on `main` is prohibited by governance even where GitHub cannot enforce it.
+The PR must remain unmerged until CI and Security are green and HQ explicitly authorizes merge. Direct work on `main` is prohibited by governance even where GitHub cannot enforce it. Stage 9D uses exactly one bounded branch and one pull request to `main`; no Stage 10/10A branch may begin from its unmerged head.
+
+For Stage 9D the only authorized mutations are repository documentation, ADRs, governance/design/testing guidance, machine-readable implementation-contract fixtures, and tests whose sole purpose is preventing contract drift. Product schema, migrations, authentication, GitHub ingestion, Candidate Submission or Working Context runtime behavior, reconciliation, model adapters, MCP product tools, Manual/Automatic runtime behavior, and new UI screens are forbidden.
 
 Before broader collaboration or public-production operations, enable enforceable branch protection/rulesets with required CI/security checks and an independent review model. Re-evaluate CodeQL and dependency review if repository ownership or licensed capabilities change. Do not weaken the repository-compatible SAST fallback while CodeQL is unavailable.
 
