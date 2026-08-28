@@ -6,4 +6,6 @@ The web runtime is Next.js App Router. The API is Fastify. The worker hosts pg-b
 
 This stage contains synthetic probes only. It does not define Memoid product entities, routes, tools, sync logic, exports, or destructive behavior.
 
+Ordinary external MCP/API machine clients cannot trigger Source refresh or synchronization in V1. GitHub Source ingestion and synchronization remain Memoid/server-controlled; external clients may use authorized read, status, candidate-evidence, and reconciliation capabilities only.
+
 Consequential accepted decisions, including provisional and proof-gated boundaries, are indexed in `docs/decisions/README.md`.

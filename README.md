@@ -6,10 +6,11 @@ Memoid is **not market-validated**. Stage 2 concluded **DO NOT BUILD / KILL** be
 
 ## Current status
 
-- Stage 8B repository/environment foundation: **COMPLETE — HQ RECONCILED AFTER CORRECTION**.
-- Stage 8C: **ACTIVE — PRE-STAGE-9 READINESS CORRECTIONS**. This branch changes governance, documentation, and security tooling only.
-- Stage 9: **NOT YET FORMALLY EXECUTED** and blocked until Stage 8C is reconciled by HQ.
-- Stage 10 product implementation: **BLOCKED** until Stage 9 passes.
+- Stage 8B: **COMPLETE — HQ RECONCILED AFTER CORRECTION**.
+- Stage 8C: **COMPLETE — HQ RECONCILED**.
+- Stage 9: **COMPLETE — CONDITIONAL PASS — LIMITED PRE-IMPLEMENTATION CORRECTION REQUIRED**.
+- Stage 9A: **ACTIVE — STAGE 9 READINESS CORRECTIONS**.
+- Stage 10: **BLOCKED UNTIL STAGE 9A HQ RECONCILIATION**.
 
 This repository therefore contains a production-oriented, non-feature foundation only. It does not implement Projects, Sources, Context Records, Change Proposals, reconciliation, Context Revisions, Context Packs, product MCP tools, authentication flows, export, archive/delete, or the product database schema.
 
@@ -21,6 +22,7 @@ This repository therefore contains a production-oriented, non-feature foundation
 - WorkOS AuthKit direction with Memoid-owned stable identity, session, authorization, and security state.
 - MCP v2 split SDK packages with remote Streamable HTTP as the hosted adapter direction.
 - Read-only GitHub App using selective Source ingestion; no durable repository mirror.
+- Ordinary external MCP/API machine clients cannot trigger Source refresh or synchronization in V1. Source synchronization is Memoid/server-controlled.
 - PostgreSQL full-text retrieval and pg-boss; no Redis, vector database, or embeddings in initial V1.
 - Render, S3/KMS, OpenTelemetry, and Grafana directions, with proof-gated details recorded in the ADRs.
 
@@ -28,7 +30,7 @@ See [the ADR index](./docs/decisions/README.md) for decision status and [the arc
 
 ## Prerequisites
 
-- Node.js 24.18.x
+- Node.js 24.20.x (Node 24 LTS; later secure Node 24 patches remain allowed)
 - pnpm 11.24.x through Corepack
 - Docker with Compose for PostgreSQL proofs
 - Chromium installed through Playwright for browser verification
@@ -44,13 +46,15 @@ pnpm db:seed
 pnpm dev
 ```
 
-Web: `http://localhost:3000` · API health: `http://localhost:3001/health`
+Web: `http://localhost:3000` · API liveness: `http://localhost:3001/health` · dependency readiness: `http://localhost:3001/ready`
 
 ## Environment model
 
 Copy `.env.example` to `.env` for local development. The example contains synthetic local-only values. Development, test, staging, and production must use separate credentials, databases, OAuth/GitHub registrations, storage, encryption keys, and telemetry boundaries. Production data must not flow into lower environments by default. Never commit `.env` files or reusable credentials.
 
 Application runtimes must not use database owner/admin credentials. Database tests use only the synthetic `foundation.tenant_probe` table. `pg-boss` is infrastructure and never replaces application idempotency or domain concurrency rules.
+
+`/health` is process liveness only and does not contact PostgreSQL. `/ready` performs a bounded, read-only PostgreSQL probe using application credentials; it returns HTTP 503 with a sanitized body when PostgreSQL is unavailable. Configure the bound with `DATABASE_READINESS_TIMEOUT_MS` (default 2000 ms, allowed range 100–10000 ms).
 
 ## Verification
 

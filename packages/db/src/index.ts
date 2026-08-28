@@ -17,6 +17,37 @@ export function createDatabase(connectionString: string, max = 10): Kysely<Found
   });
 }
 
+export interface PostgresReadinessProbe {
+  check: () => Promise<boolean>;
+  close: () => Promise<void>;
+}
+
+export function createPostgresReadinessProbe(
+  connectionString: string,
+  timeoutMs: number,
+): PostgresReadinessProbe {
+  const pool = new Pool({
+    connectionString,
+    max: 2,
+    connectionTimeoutMillis: timeoutMs,
+    query_timeout: timeoutMs,
+    statement_timeout: timeoutMs,
+    application_name: "memoid-api-readiness",
+  });
+
+  return {
+    check: async () => {
+      try {
+        const result = await pool.query<{ ready: number }>("select 1 as ready");
+        return result.rows[0]?.ready === 1;
+      } catch {
+        return false;
+      }
+    },
+    close: async () => pool.end(),
+  };
+}
+
 export async function withTenantTransaction<T>(
   db: Kysely<FoundationDatabase>,
   tenantId: string,

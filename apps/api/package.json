@@ -12,6 +12,7 @@
   "dependencies": {
     "@memoid/config": "workspace:*",
     "@memoid/contracts": "workspace:*",
+    "@memoid/db": "workspace:*",
     "@memoid/observability": "workspace:*",
     "fastify": "5.12.1"
   },

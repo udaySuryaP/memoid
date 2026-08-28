@@ -85,6 +85,9 @@ importers:
       "@memoid/contracts":
         specifier: workspace:*
         version: link:../../packages/contracts
+      "@memoid/db":
+        specifier: workspace:*
+        version: link:../../packages/db
       "@memoid/observability":
         specifier: workspace:*
         version: link:../../packages/observability

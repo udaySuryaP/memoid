@@ -2,7 +2,7 @@
 
 | Boundary         | Locked line | Foundation pin            | Proof                          |
 | ---------------- | ----------- | ------------------------- | ------------------------------ |
-| Node.js          | 24 LTS      | 24.18.0                   | CI and runtime files           |
+| Node.js          | 24 LTS      | 24.20.0                   | CI and runtime files           |
 | pnpm             | 11          | 11.24.0                   | Corepack lock                  |
 | TypeScript       | 6           | 6.0.3                     | strict typecheck               |
 | Next.js / React  | 16 / 19     | 16.3.3 / 19.2.8           | build and browser test         |
@@ -16,3 +16,5 @@
 | Playwright       | 1           | 1.62.1                    | visual and accessibility suite |
 
 Pins were checked against official release, documentation, or registry sources on 2026-08-27. A major change requires an ADR and a new compatibility proof.
+
+Node 24.18.0 was superseded because the official 24.18.1 security release fixed multiple high-, medium-, and low-severity vulnerabilities. Stage 9A selects 24.20.0, the current supported Node 24 LTS patch checked on 2026-08-28. The repository retains the Node 24 major line while permitting future secure Node 24 patches through the `>=24.20.0 <25` engine range; exact CI/runtime files record the patch proved by this correction.
