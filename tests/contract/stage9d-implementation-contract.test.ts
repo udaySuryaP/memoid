@@ -216,7 +216,9 @@ describe("complete Stage 9C failure/race contract", () => {
     expect(byKey(contract, "CHECKPOINT_IS_NOT_BLANKET_CONFIRMATION")?.requiredBehavior).toContain(
       "not 'the user confirms every extracted fact'",
     );
-    expect(byKey(contract, "AI_INFERRED_HIGH_CONFIDENCE_CANNOT_APPROVE")?.requiredBehavior).toContain(
+    expect(
+      byKey(contract, "AI_INFERRED_HIGH_CONFIDENCE_CANNOT_APPROVE")?.requiredBehavior,
+    ).toContain(
       "Model confidence/classification/checkpoint invocation alone never proves eligibility",
     );
     expect(byKey(contract, "CANDIDATE_RECONCILIATION_GAP")?.requiredBehavior).toContain(
@@ -228,9 +230,9 @@ describe("complete Stage 9C failure/race contract", () => {
     expect(byKey(contract, "MODEL_OUTAGE_AFTER_ACCEPTED_CHECKPOINT")?.requiredBehavior).toContain(
       "recent work does not disappear",
     );
-    expect(byKey(contract, "POLICY_OR_FRONTIER_CHANGE_BEFORE_AUTO_COMMIT")?.requiredBehavior).toContain(
-      "Abort stale automatic acceptance",
-    );
+    expect(
+      byKey(contract, "POLICY_OR_FRONTIER_CHANGE_BEFORE_AUTO_COMMIT")?.requiredBehavior,
+    ).toContain("Abort stale automatic acceptance");
     expect(byKey(contract, "MANUAL_TO_AUTOMATIC_WITH_BACKLOG")?.requiredBehavior).toContain(
       "no silent mass acceptance",
     );

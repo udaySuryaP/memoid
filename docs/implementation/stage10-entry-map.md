@@ -88,7 +88,7 @@ Gate classes: **A** foundational/entry gate resolved before the first irreversib
 | Idempotency key scope, retention, and replay result           | PROOF-GATED / B      | 10B         | duplicate/concurrent request tests                         | before 10B                             |
 | Operation states, cancellation, retry, and terminal semantics | PROOF-GATED / B      | 10B         | worker crash/retry state-machine tests                     | before 10B                             |
 | Desired/processed frontier lease and lost-wakeup behavior     | PROOF-GATED / B      | 10B + 10F   | 105→106 race, crash/retry, duplicate-job integration tests | before 10F processing                  |
-| Candidate contiguous/gap-preserving reconciliation watermark | PROOF-GATED / B      | 10B         | 47/48/50 complete with 49 pending concurrency tests        | before 10B frontier code               |
+| Candidate contiguous/gap-preserving reconciliation watermark  | PROOF-GATED / B      | 10B         | 47/48/50 complete with 49 pending concurrency tests        | before 10B frontier code               |
 | WorkOS subject mapping and verified-email policy              | PROOF-GATED / B      | 10C         | hosted-flow integration and account-link threat tests      | before 10C                             |
 | Session lifetime, revocation, and step-up freshness           | PROVISIONAL / B      | 10C         | AuthKit capability proof and security test matrix          | before 10C                             |
 | Capability names, role bundles, and grant precedence          | PROOF-GATED / B      | 10C         | deny-by-default authorization matrix                       | before 10C                             |
@@ -123,7 +123,7 @@ Gate classes: **A** foundational/entry gate resolved before the first irreversib
 | Archive, delete grace, restore, and deletion saga             | LOCKED semantics / B | 10S         | race, retry, backup anti-resurrection tests                | before 10S                             |
 | Retention schedule                                            | PROVISIONAL / C      | HQ + 10S    | privacy/legal review and restore constraints               | before production data                 |
 | Object storage, KMS, region, and key rotation                 | PROVISIONAL / C      | 10T         | provider proof, restore drill, threat model                | before 10T closes                      |
-| Analytics minimization                                       | PROVISIONAL / C      | HQ + 10T    | event inventory and privacy review                         | before production telemetry            |
+| Analytics minimization                                        | PROVISIONAL / C      | HQ + 10T    | event inventory and privacy review                         | before production telemetry            |
 | RPO/RTO, alerts, runbooks, and support ownership              | PROVISIONAL / C      | 10T         | failure drills and alert delivery proof                    | before production readiness            |
 | Final provider/model selection                                | PROVISIONAL / D      | HQ          | quality/cost/latency evidence                              | may remain replaceable                 |
 
