@@ -4,18 +4,13 @@ Memoid is a source-aware context control plane for AI-native software projects. 
 
 Memoid is **not market-validated**. Stage 2 concluded **DO NOT BUILD / KILL** because the tested competent repository-native baseline did not justify an additional maintained context layer. Full development continues only because the founder issued a locked **BUILD FULL PRODUCT** override. That execution decision does not reverse or soften the evidence.
 
-## Current status
+## Repository contract baseline
 
-- Stage 8B: **COMPLETE — HQ RECONCILED AFTER CORRECTION**.
-- Stage 8C: **COMPLETE — HQ RECONCILED**.
-- Stage 9: **COMPLETE — PASS AFTER STAGE 9A CORRECTIONS — HQ RECONCILED**.
-- Stage 9A: **COMPLETE — HQ RECONCILED**.
-- Stage 9B: **COMPLETE — HQ RECONCILED**.
-- Stage 9C: **COMPLETE — HQ RECONCILED WITH CLARIFICATIONS**.
-- Stage 9D: **ACTIVE — REPOSITORY IMPLEMENTATION-CONTRACT SYNCHRONIZATION**.
-- Stage 10/10A: **BLOCKED UNTIL STAGE 9D HQ RECONCILIATION AND EXPLICIT HQ RE-AUTHORIZATION**.
+This repository's implementation contract is synchronized through the **HQ-reconciled Stage 9C** product/domain/security/engine/workflow baseline. Repository files define implementation boundaries, ordering, proof gates, and drift-prevention contracts; they do **not independently authorize a current workstream**.
 
-This repository therefore contains a production-oriented, non-feature foundation and repository-native implementation contract only. It does not implement Projects, Sources, Candidate Submissions, Working Context, Context Records, Change Proposals, reconciliation, Context Revisions, Context Packs, product MCP tools, authentication flows, export, archive/delete, or the product database schema.
+Before implementing any product vertical, verify explicit authorization against the current canonical `00 - MEMOID HQ` / project state. A later HQ authorization of 10A, 10B, or another vertical does not require a repository status-only patch: execution authorization is owned by HQ, while this repository owns the durable implementation contract.
+
+This repository contains a production-oriented non-feature foundation and repository-native implementation contract. It does not itself claim that any product vertical is currently authorized.
 
 ## Architecture foundation
 
@@ -30,10 +25,13 @@ This repository therefore contains a production-oriented, non-feature foundation
 - `MANUAL` is the fail-safe/default Project review policy; `AUTOMATIC` is explicit and may only apply changes the Memoid policy engine positively proves eligible. A model never approves itself.
 - A checkpoint request authorizes submission of extracted candidate material; it does not confirm every AI-inferred assertion. Candidate-origin/confirmation provenance must be preserved.
 - Successfully accepted checkpoints remain available as explicitly lower-trust pending/unreconciled continuity during model-provider failure after deterministic authorization, validation, secret scanning, minimization, and qualification.
+- Candidate Reconciled Frontier is contiguous/gap-safe rather than `max(sequence processed)` when gaps exist.
+- Git commit count is not Memoid semantic-change count; non-default branches cannot silently replace default-branch current implementation truth.
+- Reconciliation and Resume/Context Pack generation are separate pipelines.
 - PostgreSQL full-text retrieval and pg-boss; no Redis, vector database, or embeddings in initial V1.
 - Render, S3/KMS, OpenTelemetry, and Grafana directions, with proof-gated details recorded in the ADRs.
 
-See [the ADR index](./docs/decisions/README.md) for decision status, [the architecture guide](./docs/architecture/foundation.md) for package boundaries, and [the Stage 10 entry map](./docs/implementation/stage10-entry-map.md) for the implementation order and proof gates.
+See [the ADR index](./docs/decisions/README.md), [the architecture guide](./docs/architecture/foundation.md), [the Stage 10 entry map](./docs/implementation/stage10-entry-map.md), and the complete [Stage 9C failure/race contract](./docs/implementation/stage9c-failure-race-contract.json).
 
 ## Prerequisites
 
@@ -104,6 +102,6 @@ The canonical product specification and master roadmap outrank repository guidan
 
 **feature branch → CI/security → pull request → HQ review → merge**
 
-Do not work directly on `main`, treat the founder override as market validation, merge the Stage 9D PR without HQ authorization, or begin Stage 10/10A before Stage 9D is HQ-reconciled and HQ explicitly re-authorizes implementation. Current GitHub plan limitations and the required pre-collaboration enforcement upgrades are recorded in [repository governance](./docs/governance/repository.md).
+Direct pushes to `main` are prohibited by governance even where GitHub cannot technically enforce them. The repository defines what implementation is allowed and what proof gates apply; `00 - MEMOID HQ` defines which workstream is currently authorized. Always check current canonical HQ/project authorization before starting or merging a vertical.
 
 Coding agents should start with [AGENTS.md](./AGENTS.md).

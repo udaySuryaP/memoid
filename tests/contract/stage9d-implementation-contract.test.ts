@@ -3,17 +3,40 @@ import { describe, expect, it } from "vitest";
 
 interface ContractScenario {
   id: string;
+  key: string;
+  scenario: string;
+  detection: string;
+  requiredBehavior: string;
+  userVisibleBehavior: string;
+  recovery: string;
+  idempotencyConcurrency: string;
+  auditExpectation: string;
   owners: string[];
-  required: string;
-  forbidden: string;
-  input?: unknown;
+  requiredProof: string;
+  mechanismStatus: string;
+}
+
+interface FailureRaceContract {
+  schemaVersion: number;
+  canonicalBaseline: string;
+  artifactRole: string;
+  scenarioCount: number;
+  validOwners: string[];
+  scenarios: ContractScenario[];
 }
 
 interface Stage9dContract {
   schemaVersion: number;
   status: string;
-  stage10Authorized: boolean;
+  synchronizedBaseline: string;
+  executionAuthorization: {
+    ownedBy: string;
+    repositoryMayAuthorizeWorkstream: boolean;
+    mustVerifyBeforeImplementation: boolean;
+    stage10EntryMapDefinesGatesNotLiveAuthorization: boolean;
+  };
   exactRepresentationProofGated: boolean;
+  failureRaceContract: { path: string; canonicalScenarioCount: number };
   primaryLoop: string[];
   integrityPlanes: Array<{ id: string; trustedOnReceipt: boolean; qualification: string[] }>;
   candidateOriginClasses: string[];
@@ -33,39 +56,47 @@ interface Stage9dContract {
   deterministicCandidateIntakeBeforeModel: string[];
   github: Record<string, string | boolean | string[]>;
   gateClasses: Record<string, string>;
-  scenarios: ContractScenario[];
 }
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-async function loadContract(): Promise<Stage9dContract> {
+async function loadStage9dContract(): Promise<Stage9dContract> {
   return JSON.parse(
     await read("../../docs/implementation/stage9d-implementation-contract.json"),
   ) as Stage9dContract;
 }
 
-const scenarioIds = [
-  "CHECKPOINT_IS_NOT_BLANKET_CONFIRMATION",
-  "AI_CONFIDENCE_CANNOT_APPROVE",
-  "CANDIDATE_GAP_49",
-  "SOURCE_LOST_WAKEUP_105_106",
-  "MODEL_OUTAGE_AFTER_ACCEPTED_CHECKPOINT",
-  "CONCURRENT_POLICY_OR_FRONTIER_CHANGE",
-  "MANUAL_TO_AUTOMATIC_WITH_BACKLOG",
-  "AUTOMATIC_TO_MANUAL",
-  "FIFTY_PUSH_BURST",
-  "NON_DEFAULT_BRANCH_ASSERTION",
-  "MISSING_DELAYED_WEBHOOK",
-] as const;
+async function loadFailureRaceContract(): Promise<FailureRaceContract> {
+  return JSON.parse(
+    await read("../../docs/implementation/stage9c-failure-race-contract.json"),
+  ) as FailureRaceContract;
+}
+
+const byKey = (contract: FailureRaceContract, key: string) =>
+  contract.scenarios.find((scenario) => scenario.key === key);
 
 describe("Stage 9D implementation contract", () => {
-  it("keeps Stage 10 blocked and the four integrity planes distinct", async () => {
-    const contract = await loadContract();
+  it("keeps durable repository contract separate from live HQ authorization", async () => {
+    const contract = await loadStage9dContract();
 
-    expect(contract.schemaVersion).toBe(1);
+    expect(contract.schemaVersion).toBe(2);
     expect(contract.status).toBe("IMPLEMENTATION_CONTRACT_ONLY");
-    expect(contract.stage10Authorized).toBe(false);
-    expect(contract.exactRepresentationProofGated).toBe(true);
+    expect(contract.synchronizedBaseline).toBe("HQ_RECONCILED_STAGE_9C");
+    expect(contract.executionAuthorization).toEqual({
+      ownedBy: "CANONICAL_HQ_PROJECT_STATE",
+      repositoryMayAuthorizeWorkstream: false,
+      mustVerifyBeforeImplementation: true,
+      stage10EntryMapDefinesGatesNotLiveAuthorization: true,
+    });
+    expect(contract.failureRaceContract).toEqual({
+      path: "docs/implementation/stage9c-failure-race-contract.json",
+      canonicalScenarioCount: 83,
+    });
+  });
+
+  it("keeps the four integrity planes distinct", async () => {
+    const contract = await loadStage9dContract();
+
     expect(contract.integrityPlanes.map(({ id }) => id)).toEqual([
       "SOURCE_OBSERVATION",
       "CANDIDATE_SUBMISSION",
@@ -77,7 +108,7 @@ describe("Stage 9D implementation contract", () => {
   });
 
   it("separates checkpoint consent, assertion origin, and automatic eligibility", async () => {
-    const contract = await loadContract();
+    const contract = await loadStage9dContract();
 
     expect(contract.candidateOriginClasses).toEqual([
       "EXPLICIT_USER_AUTHORED_OR_SUFFICIENTLY_CONFIRMED",
@@ -96,28 +127,13 @@ describe("Stage 9D implementation contract", () => {
     );
   });
 
-  it("preserves review-policy defaults, transitions, and current-basis checks", async () => {
-    const contract = await loadContract();
+  it("preserves review-policy and frontier invariants", async () => {
+    const contract = await loadStage9dContract();
 
     expect(contract.reviewPolicy.allowed).toEqual(["MANUAL", "AUTOMATIC"]);
     expect(contract.reviewPolicy.defaultWhenMissingOrLegacy).toBe("MANUAL");
     expect(contract.reviewPolicy.creationPresentsChoice).toBe(true);
     expect(Object.values(contract.reviewPolicy.change).every(Boolean)).toBe(true);
-    expect(
-      contract.scenarios.find(({ id }) => id === "MANUAL_TO_AUTOMATIC_WITH_BACKLOG"),
-    ).toMatchObject({
-      forbidden: "SILENT_MASS_ACCEPTANCE",
-    });
-    expect(
-      contract.scenarios.find(({ id }) => id === "CONCURRENT_POLICY_OR_FRONTIER_CHANGE"),
-    ).toMatchObject({
-      required: "RE_READ_CURRENT_BASIS_ABORT_STALE_AUTO_ACCEPT_AND_REEVALUATE",
-    });
-  });
-
-  it("locks gap-preserving Candidate and lost-wakeup Source frontier semantics", async () => {
-    const contract = await loadContract();
-
     expect(contract.candidateFrontier.reconciled).toContain("CONTIGUOUS");
     expect(contract.candidateFrontier.forbidden).toBe("MAX_SEQUENCE_PROCESSED_WHEN_GAPS_EXIST");
     expect(contract.sourceFrontiers).toEqual([
@@ -127,16 +143,10 @@ describe("Stage 9D implementation contract", () => {
       "REVIEWED_CONTEXT_SOURCE_COVERAGE",
     ]);
     expect(contract.reviewedSourceCoverage).toBe("VECTOR_MAP_OR_RECORD_LEVEL_RELATIONSHIP");
-    expect(contract.scenarios.find(({ id }) => id === "CANDIDATE_GAP_49")).toMatchObject({
-      required: "CONTIGUOUS_WATERMARK_48_WITH_EXPLICIT_LATER_COMPLETION_50",
-    });
-    expect(contract.scenarios.find(({ id }) => id === "SOURCE_LOST_WAKEUP_105_106")).toMatchObject({
-      required: "DURABLE_FOLLOW_UP_FOR_106_BEFORE_QUIESCENCE",
-    });
   });
 
-  it("keeps deterministic pending continuity available through provider failure", async () => {
-    const contract = await loadContract();
+  it("keeps deterministic pending continuity and GitHub boundaries", async () => {
+    const contract = await loadStage9dContract();
 
     expect(contract.engine).toMatchObject({
       architecture: "DETERMINISTIC_PLUS_MODEL_ASSISTED",
@@ -155,16 +165,6 @@ describe("Stage 9D implementation contract", () => {
       "NORMALIZATION_AND_MINIMIZATION",
       "SAFE_PENDING_QUALIFICATION",
     ]);
-    expect(
-      contract.scenarios.find(({ id }) => id === "MODEL_OUTAGE_AFTER_ACCEPTED_CHECKPOINT"),
-    ).toMatchObject({
-      required: "SAFE_PENDING_UNRECONCILED_LOWER_TRUST_CONTINUITY_REMAINS_RESUMABLE",
-    });
-  });
-
-  it("preserves GitHub signal, catch-up, branch, burst, and gate-class boundaries", async () => {
-    const contract = await loadContract();
-
     expect(contract.github).toMatchObject({
       role: "COMPLEMENTARY_AUTHORITATIVE_SOURCE",
       webhookPayload: "SIGNAL_NOT_AUTHORITATIVE_SEMANTIC_MUTATION",
@@ -175,42 +175,93 @@ describe("Stage 9D implementation contract", () => {
     });
     expect(contract.gateClasses.A).toContain("10A_SCHEMA_OR_DOMAIN_COMMITMENT");
     expect(contract.gateClasses.B).toBe("BEFORE_NAMED_AFFECTED_VERTICAL");
-    expect(contract.scenarios.map(({ id }) => id)).toEqual(scenarioIds);
-    expect(new Set(contract.scenarios.flatMap(({ owners }) => owners))).toEqual(
-      new Set([
-        "10A",
-        "10B",
-        "10D",
-        "10E",
-        "10F",
-        "10G",
-        "10H",
-        "10J",
-        "10L",
-        "10M",
-        "10O",
-        "10P",
-        "10T",
-      ]),
+  });
+});
+
+describe("complete Stage 9C failure/race contract", () => {
+  it("contains exactly 83 unique canonical scenarios with complete required fields", async () => {
+    const contract = await loadFailureRaceContract();
+    const ids = contract.scenarios.map(({ id }) => id);
+
+    expect(contract.canonicalBaseline).toBe("HQ_RECONCILED_STAGE_9C");
+    expect(contract.scenarioCount).toBe(83);
+    expect(contract.scenarios).toHaveLength(83);
+    expect(new Set(ids).size).toBe(83);
+    expect(ids).toEqual(
+      Array.from({ length: 83 }, (_, index) => `S9C-FR-${String(index + 1).padStart(3, "0")}`),
+    );
+
+    for (const scenario of contract.scenarios) {
+      expect(scenario.key.trim()).not.toBe("");
+      expect(scenario.scenario.trim()).not.toBe("");
+      expect(scenario.detection.trim()).not.toBe("");
+      expect(scenario.requiredBehavior.trim()).not.toBe("");
+      expect(scenario.userVisibleBehavior.trim()).not.toBe("");
+      expect(scenario.recovery.trim()).not.toBe("");
+      expect(scenario.idempotencyConcurrency.trim()).not.toBe("");
+      expect(scenario.auditExpectation.trim()).not.toBe("");
+      expect(scenario.owners.length).toBeGreaterThan(0);
+      expect(scenario.requiredProof.trim()).not.toBe("");
+      expect(scenario.mechanismStatus).toBe("SEMANTICS_LOCKED_MECHANISM_PROOF_GATED");
+
+      for (const owner of scenario.owners) {
+        expect(contract.validOwners).toContain(owner);
+      }
+    }
+  });
+
+  it("preserves controlling checkpoint, policy, frontier, outage and branch semantics", async () => {
+    const contract = await loadFailureRaceContract();
+
+    expect(byKey(contract, "CHECKPOINT_IS_NOT_BLANKET_CONFIRMATION")?.requiredBehavior).toContain(
+      "not 'the user confirms every extracted fact'",
+    );
+    expect(byKey(contract, "AI_INFERRED_HIGH_CONFIDENCE_CANNOT_APPROVE")?.requiredBehavior).toContain(
+      "Model confidence/classification/checkpoint invocation alone never proves eligibility",
+    );
+    expect(byKey(contract, "CANDIDATE_RECONCILIATION_GAP")?.requiredBehavior).toContain(
+      "highest contiguous stable disposition (48)",
+    );
+    expect(byKey(contract, "PUSH_DURING_SOURCE_WORKER")?.requiredBehavior).toContain(
+      "durably require follow-up processing",
+    );
+    expect(byKey(contract, "MODEL_OUTAGE_AFTER_ACCEPTED_CHECKPOINT")?.requiredBehavior).toContain(
+      "recent work does not disappear",
+    );
+    expect(byKey(contract, "POLICY_OR_FRONTIER_CHANGE_BEFORE_AUTO_COMMIT")?.requiredBehavior).toContain(
+      "Abort stale automatic acceptance",
+    );
+    expect(byKey(contract, "MANUAL_TO_AUTOMATIC_WITH_BACKLOG")?.requiredBehavior).toContain(
+      "no silent mass acceptance",
+    );
+    expect(byKey(contract, "NON_DEFAULT_BRANCH_ASSERTION")?.requiredBehavior).toContain(
+      "must not silently replace current default-branch implementation truth",
+    );
+    expect(byKey(contract, "EXTERNAL_AI_ATTEMPTS_SOURCE_REFRESH")?.requiredBehavior).toContain(
+      "Source catch-up remains Memoid/server-controlled",
     );
   });
 
-  it("keeps repository entry guidance aligned with the Stage 9D gate", async () => {
-    const [readme, agents, governance, map] = await Promise.all([
-      read("../../README.md"),
-      read("../../AGENTS.md"),
-      read("../../docs/governance/repository.md"),
-      read("../../docs/implementation/stage10-entry-map.md"),
-    ]);
+  it("preserves degraded Resume, revocation, deletion and archive fencing semantics", async () => {
+    const contract = await loadFailureRaceContract();
 
-    for (const guidance of [readme, agents, governance]) {
-      expect(guidance).toContain("Stage 9D");
-      expect(guidance).toContain("Stage 10/10A");
-      expect(guidance).toContain("BLOCKED UNTIL STAGE 9D HQ RECONCILIATION");
-      expect(guidance).not.toContain("Stage 9B **ACTIVE");
-    }
-    expect(map).toContain("Candidate Reconciled Frontier");
-    expect(map).toContain("checkpoint request authorizes submission");
-    expect(map).toContain("does not authorize Stage 10");
+    expect(byKey(contract, "RESUME_WHILE_MODEL_DEGRADED")?.userVisibleBehavior).toContain(
+      "recent work does not disappear",
+    );
+    expect(byKey(contract, "WORKING_VS_REVIEWED_CONFLICT")?.requiredBehavior).toContain(
+      "cannot silently replace Reviewed Durable Context",
+    );
+    expect(byKey(contract, "WORKING_VS_SOURCE_CONFLICT")?.requiredBehavior).toContain(
+      "Authoritative Source evidence wins",
+    );
+    expect(byKey(contract, "PROJECT_GRANT_REVOKED_MID_REQUEST")?.requiredBehavior).toContain(
+      "Fail closed before side effect",
+    );
+    expect(byKey(contract, "DELETE_PENDING_WITH_NEW_WRITES")?.requiredBehavior).toContain(
+      "Fence new writes",
+    );
+    expect(byKey(contract, "ARCHIVE_FENCES_QUEUED_WORK")?.requiredBehavior).toContain(
+      "Fence or reauthorize queued/mid-flight work",
+    );
   });
 });

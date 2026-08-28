@@ -1,8 +1,18 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "status": "IMPLEMENTATION_CONTRACT_ONLY",
-  "stage10Authorized": false,
+  "synchronizedBaseline": "HQ_RECONCILED_STAGE_9C",
+  "executionAuthorization": {
+    "ownedBy": "CANONICAL_HQ_PROJECT_STATE",
+    "repositoryMayAuthorizeWorkstream": false,
+    "mustVerifyBeforeImplementation": true,
+    "stage10EntryMapDefinesGatesNotLiveAuthorization": true
+  },
   "exactRepresentationProofGated": true,
+  "failureRaceContract": {
+    "path": "docs/implementation/stage9c-failure-race-contract.json",
+    "canonicalScenarioCount": 83
+  },
   "primaryLoop": [
     "AUTHORIZED_CLIENT_RESUME",
     "USER_AI_WORK",
@@ -15,193 +25,26 @@
     "AUTHORIZED_CROSS_CLIENT_RESUME"
   ],
   "integrityPlanes": [
-    {
-      "id": "SOURCE_OBSERVATION",
-      "trustedOnReceipt": false,
-      "qualification": ["source", "category", "scope", "ref", "authority", "freshness"]
-    },
-    {
-      "id": "CANDIDATE_SUBMISSION",
-      "trustedOnReceipt": false,
-      "qualification": [
-        "project_binding",
-        "submission_provenance",
-        "origin_confirmation",
-        "intake_state"
-      ]
-    },
-    {
-      "id": "WORKING_CONTEXT",
-      "trustedOnReceipt": false,
-      "qualification": [
-        "unreviewed",
-        "pending_or_reconciled",
-        "certainty",
-        "conflict",
-        "freshness",
-        "branch_scope"
-      ]
-    },
-    {
-      "id": "REVIEWED_DURABLE_CONTEXT",
-      "trustedOnReceipt": false,
-      "qualification": ["context_revision", "review_policy", "authority", "provenance", "freshness"]
-    }
+    {"id":"SOURCE_OBSERVATION","trustedOnReceipt":false,"qualification":["source","category","scope","ref","authority","freshness"]},
+    {"id":"CANDIDATE_SUBMISSION","trustedOnReceipt":false,"qualification":["project_binding","submission_provenance","origin_confirmation","intake_state"]},
+    {"id":"WORKING_CONTEXT","trustedOnReceipt":false,"qualification":["unreviewed","pending_or_reconciled","certainty","conflict","freshness","branch_scope"]},
+    {"id":"REVIEWED_DURABLE_CONTEXT","trustedOnReceipt":false,"qualification":["context_revision","review_policy","authority","provenance","freshness"]}
   ],
-  "candidateOriginClasses": [
-    "EXPLICIT_USER_AUTHORED_OR_SUFFICIENTLY_CONFIRMED",
-    "AI_INFERRED",
-    "SOURCE_OR_SYSTEM_DERIVED"
-  ],
-  "checkpoint": {
-    "means": "SUBMIT_EXTRACTED_CHECKPOINT",
-    "doesNotMean": "USER_CONFIRMS_EVERY_EXTRACTED_ASSERTION",
-    "rawTranscriptDefault": false
-  },
+  "candidateOriginClasses": ["EXPLICIT_USER_AUTHORED_OR_SUFFICIENTLY_CONFIRMED","AI_INFERRED","SOURCE_OR_SYSTEM_DERIVED"],
+  "checkpoint": {"means":"SUBMIT_EXTRACTED_CHECKPOINT","doesNotMean":"USER_CONFIRMS_EVERY_EXTRACTED_ASSERTION","rawTranscriptDefault":false},
   "reviewPolicy": {
-    "allowed": ["MANUAL", "AUTOMATIC"],
-    "defaultWhenMissingOrLegacy": "MANUAL",
-    "creationPresentsChoice": true,
-    "modelMayApprove": false,
-    "change": {
-      "prospective": true,
-      "requiresHumanActor": true,
-      "requiresStepUp": true,
-      "requiresAuditEvent": true,
-      "requiresMonotonicVersion": true,
-      "requiresEffectiveTimestamp": true
-    },
-    "protectedAutomaticClasses": [
-      "CONFLICT",
-      "UNCERTAINTY",
-      "STALE_OR_REVALIDATION_REQUIRED",
-      "SOURCE_AUTHORITY_CHANGE",
-      "MATERIAL_SOURCE_TOPOLOGY_CHANGE",
-      "SECURITY_SENSITIVE_CHANGE",
-      "DESTRUCTIVE_OR_HIGH_IMPACT_REMOVAL",
-      "INSUFFICIENT_ORIGIN_EVIDENCE_OR_PROVENANCE",
-      "INVALID_OR_LOW_CONFIDENCE_OUTPUT",
-      "STALE_FRESHNESS_SENSITIVE_SOURCE",
-      "BRANCH_ONLY_FUTURE_STATE",
-      "UNRESOLVED_AUTHORITY_DISAGREEMENT",
-      "PRIMARY_VERIFIER_DISAGREEMENT",
-      "NOT_POSITIVELY_PROVEN_ELIGIBLE"
-    ]
+    "allowed":["MANUAL","AUTOMATIC"],
+    "defaultWhenMissingOrLegacy":"MANUAL",
+    "creationPresentsChoice":true,
+    "modelMayApprove":false,
+    "change":{"prospective":true,"requiresHumanActor":true,"requiresStepUp":true,"requiresAuditEvent":true,"requiresMonotonicVersion":true,"requiresEffectiveTimestamp":true},
+    "protectedAutomaticClasses":["CONFLICT","UNCERTAINTY","STALE_OR_REVALIDATION_REQUIRED","SOURCE_AUTHORITY_CHANGE","MATERIAL_SOURCE_TOPOLOGY_CHANGE","SECURITY_SENSITIVE_CHANGE","DESTRUCTIVE_OR_HIGH_IMPACT_REMOVAL","INSUFFICIENT_ORIGIN_EVIDENCE_OR_PROVENANCE","INVALID_OR_LOW_CONFIDENCE_OUTPUT","STALE_FRESHNESS_SENSITIVE_SOURCE","BRANCH_ONLY_FUTURE_STATE","UNRESOLVED_AUTHORITY_DISAGREEMENT","PRIMARY_VERIFIER_DISAGREEMENT","NOT_POSITIVELY_PROVEN_ELIGIBLE"]
   },
-  "sourceFrontiers": [
-    "OBSERVED_OR_DESIRED",
-    "INGESTED",
-    "RECONCILED",
-    "REVIEWED_CONTEXT_SOURCE_COVERAGE"
-  ],
-  "reviewedSourceCoverage": "VECTOR_MAP_OR_RECORD_LEVEL_RELATIONSHIP",
-  "candidateFrontier": {
-    "intake": "HIGHEST_DURABLY_ACCEPTED_SEQUENCE_ALLOWED",
-    "reconciled": "HIGHEST_CONTIGUOUS_STABLE_DISPOSITION_OR_EXPLICIT_GAP_PRESERVING_EQUIVALENT",
-    "forbidden": "MAX_SEQUENCE_PROCESSED_WHEN_GAPS_EXIST"
-  },
-  "engine": {
-    "architecture": "DETERMINISTIC_PLUS_MODEL_ASSISTED",
-    "modelTrusted": false,
-    "providerNeutralPort": true,
-    "reconciliationAndResumeSeparate": true,
-    "fallback": "EXPLICIT_ALLOWLISTED_PRIVACY_COMPATIBLE_AUDITABLE_ONLY",
-    "wholeRepositoryToModel": false,
-    "rawTranscriptToModelAsDurableTruth": false,
-    "embeddingsInitially": false
-  },
-  "deterministicCandidateIntakeBeforeModel": [
-    "AUTHORIZATION",
-    "EXACT_PROJECT_BINDING",
-    "PAYLOAD_VALIDATION",
-    "SECRET_SCANNING",
-    "SIZE_ENFORCEMENT",
-    "NORMALIZATION_AND_MINIMIZATION",
-    "SAFE_PENDING_QUALIFICATION"
-  ],
-  "github": {
-    "role": "COMPLEMENTARY_AUTHORITATIVE_SOURCE",
-    "webhookPayload": "SIGNAL_NOT_AUTHORITATIVE_SEMANTIC_MUTATION",
-    "stableIdentity": "PROVIDER_REPOSITORY_ID",
-    "mutableMetadata": ["owner", "name", "url"],
-    "externalClientMayTriggerRefresh": false,
-    "serverCatchUpRequired": true,
-    "commitCountEqualsSemanticChangeCount": false
-  },
-  "gateClasses": {
-    "A": "BEFORE_FIRST_IRREVERSIBLE_10A_SCHEMA_OR_DOMAIN_COMMITMENT_PROTECTED_BY_GATE",
-    "B": "BEFORE_NAMED_AFFECTED_VERTICAL",
-    "C": "BEFORE_PRODUCTION_HARDENING_CLOSES",
-    "D": "REPLACEABLE_WHILE_LOCKED_DOMAIN_SEMANTICS_STAY_STABLE"
-  },
-  "scenarios": [
-    {
-      "id": "CHECKPOINT_IS_NOT_BLANKET_CONFIRMATION",
-      "owners": ["10A", "10H", "10L", "10P"],
-      "required": "AI_INFERRED_ORIGIN_RETAINED_AND_NOT_AUTOMATICALLY_CONFIRMED",
-      "forbidden": "CHECKPOINT_REQUEST_CONVERTS_ALL_ITEMS_TO_USER_CONFIRMED"
-    },
-    {
-      "id": "AI_CONFIDENCE_CANNOT_APPROVE",
-      "owners": ["10J", "10L", "10M"],
-      "required": "POLICY_ENGINE_REQUIRES_ALLOWED_EVIDENCE_OR_ORIGIN_BASIS_AND_ALL_CURRENT_CHECKS",
-      "forbidden": "MODEL_CONFIDENCE_OR_IMPORTANCE_ALONE_AUTO_ACCEPTS"
-    },
-    {
-      "id": "CANDIDATE_GAP_49",
-      "owners": ["10A", "10B"],
-      "input": { "stable": [47, 48, 50], "processing": [49] },
-      "required": "CONTIGUOUS_WATERMARK_48_WITH_EXPLICIT_LATER_COMPLETION_50",
-      "forbidden": "RECONCILED_FRONTIER_50_IMPLYING_49_COMPLETE"
-    },
-    {
-      "id": "SOURCE_LOST_WAKEUP_105_106",
-      "owners": ["10B", "10F"],
-      "input": { "workerSnapshot": 105, "desiredAdvancesTo": 106 },
-      "required": "DURABLE_FOLLOW_UP_FOR_106_BEFORE_QUIESCENCE",
-      "forbidden": "COMPLETE_105_AND_LEAVE_SOURCE_IDLE"
-    },
-    {
-      "id": "MODEL_OUTAGE_AFTER_ACCEPTED_CHECKPOINT",
-      "owners": ["10A", "10B", "10J", "10O"],
-      "required": "SAFE_PENDING_UNRECONCILED_LOWER_TRUST_CONTINUITY_REMAINS_RESUMABLE",
-      "forbidden": "ACCEPTED_RECENT_WORK_DISAPPEARS_OR_OVERRIDES_HIGHER_TRUST_STATE"
-    },
-    {
-      "id": "CONCURRENT_POLICY_OR_FRONTIER_CHANGE",
-      "owners": ["10L", "10M"],
-      "required": "RE_READ_CURRENT_BASIS_ABORT_STALE_AUTO_ACCEPT_AND_REEVALUATE",
-      "forbidden": "COMMIT_USING_ONLY_EARLIER_ELIGIBILITY_SNAPSHOT"
-    },
-    {
-      "id": "MANUAL_TO_AUTOMATIC_WITH_BACKLOG",
-      "owners": ["10D", "10L"],
-      "required": "PROSPECTIVE_CHANGE_PENDING_ITEMS_KEEP_ORIGINAL_POLICY_SNAPSHOT",
-      "forbidden": "SILENT_MASS_ACCEPTANCE"
-    },
-    {
-      "id": "AUTOMATIC_TO_MANUAL",
-      "owners": ["10D", "10L", "10M"],
-      "required": "PRIOR_REVISIONS_STAY_IMMUTABLE_FUTURE_CHANGES_REQUIRE_HUMAN_REVIEW",
-      "forbidden": "REWRITE_PRIOR_HISTORY"
-    },
-    {
-      "id": "FIFTY_PUSH_BURST",
-      "owners": ["10B", "10F", "10T"],
-      "required": "AUDIT_EACH_DELIVERY_COALESCE_PROCESSING_PRESERVE_MEANINGFUL_INTERMEDIATE_EVIDENCE",
-      "forbidden": "FIFTY_FULL_MODEL_RUNS_OR_ONE_SEMANTIC_CHANGE_PER_COMMIT"
-    },
-    {
-      "id": "NON_DEFAULT_BRANCH_ASSERTION",
-      "owners": ["10F", "10G", "10H"],
-      "required": "BRANCH_QUALIFIED_CANDIDATE_OR_WORKING_CONTEXT",
-      "forbidden": "SILENT_REPLACEMENT_OF_DEFAULT_BRANCH_CURRENT_IMPLEMENTATION_TRUTH"
-    },
-    {
-      "id": "MISSING_DELAYED_WEBHOOK",
-      "owners": ["10E", "10F", "10T"],
-      "required": "SERVER_CONTROLLED_CATCH_UP_CONVERGES_TO_PROVIDER_CURRENT_STATE",
-      "forbidden": "WEBHOOK_ONLY_CORRECTNESS_OR_EXTERNAL_AI_REFRESH_PRIVILEGE"
-    }
-  ]
+  "sourceFrontiers":["OBSERVED_OR_DESIRED","INGESTED","RECONCILED","REVIEWED_CONTEXT_SOURCE_COVERAGE"],
+  "reviewedSourceCoverage":"VECTOR_MAP_OR_RECORD_LEVEL_RELATIONSHIP",
+  "candidateFrontier":{"intake":"HIGHEST_DURABLY_ACCEPTED_SEQUENCE_ALLOWED","reconciled":"HIGHEST_CONTIGUOUS_STABLE_DISPOSITION_OR_EXPLICIT_GAP_PRESERVING_EQUIVALENT","forbidden":"MAX_SEQUENCE_PROCESSED_WHEN_GAPS_EXIST"},
+  "engine":{"architecture":"DETERMINISTIC_PLUS_MODEL_ASSISTED","modelTrusted":false,"providerNeutralPort":true,"reconciliationAndResumeSeparate":true,"fallback":"EXPLICIT_ALLOWLISTED_PRIVACY_COMPATIBLE_AUDITABLE_ONLY","wholeRepositoryToModel":false,"rawTranscriptToModelAsDurableTruth":false,"embeddingsInitially":false},
+  "deterministicCandidateIntakeBeforeModel":["AUTHORIZATION","EXACT_PROJECT_BINDING","PAYLOAD_VALIDATION","SECRET_SCANNING","SIZE_ENFORCEMENT","NORMALIZATION_AND_MINIMIZATION","SAFE_PENDING_QUALIFICATION"],
+  "github":{"role":"COMPLEMENTARY_AUTHORITATIVE_SOURCE","webhookPayload":"SIGNAL_NOT_AUTHORITATIVE_SEMANTIC_MUTATION","stableIdentity":"PROVIDER_REPOSITORY_ID","mutableMetadata":["owner","name","url"],"externalClientMayTriggerRefresh":false,"serverCatchUpRequired":true,"commitCountEqualsSemanticChangeCount":false},
+  "gateClasses":{"A":"BEFORE_FIRST_IRREVERSIBLE_10A_SCHEMA_OR_DOMAIN_COMMITMENT_PROTECTED_BY_GATE","B":"BEFORE_NAMED_AFFECTED_VERTICAL","C":"BEFORE_PRODUCTION_HARDENING_CLOSES","D":"REPLACEABLE_WHILE_LOCKED_DOMAIN_SEMANTICS_STAY_STABLE"}
 }
