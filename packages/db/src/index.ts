@@ -35,6 +35,11 @@ export function createPostgresReadinessProbe(
     application_name: "memoid-api-readiness",
   });
 
+  // node-postgres emits idle-client/backend failures on the Pool. Handling that
+  // event here keeps a dependency outage from becoming an unhandled process
+  // error; the next bounded check remains the readiness source of truth.
+  pool.on("error", () => undefined);
+
   return {
     check: async () => {
       try {

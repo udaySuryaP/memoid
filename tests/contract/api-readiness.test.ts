@@ -34,7 +34,7 @@ describe("API liveness and readiness", () => {
     }
   });
 
-  it("returns a sanitized 503 when PostgreSQL is unavailable", async () => {
+  it("catches a throwing readiness callback, returns a sanitized 503, and stays live", async () => {
     const app = buildServer(config, async () => {
       throw new Error(["postgresql://user", "secret@private-host", "5432/memoid"].join(":"));
     });
@@ -44,6 +44,10 @@ describe("API liveness and readiness", () => {
       expect(response.json()).toEqual({ status: "not-ready", checks: { database: false } });
       expect(response.body).not.toContain("secret");
       expect(response.body).not.toContain("private-host");
+
+      const health = await app.inject({ method: "GET", url: "/health" });
+      expect(health.statusCode).toBe(200);
+      expect(health.json()).toMatchObject({ status: "ok", service: "api" });
     } finally {
       await app.close();
     }
