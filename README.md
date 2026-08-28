@@ -1,19 +1,16 @@
 # Memoid
 
-Memoid is a source-aware context control plane for AI-native software projects. It is intended to maintain a reviewed, provenance-linked representation of project context while respecting the authority of repositories and other underlying Sources.
+Memoid is a source-aware context control plane for AI-native software projects. Its primary founder-directed product loop is durable cross-AI Project-context continuity: an authorized client resumes with a task-specific qualified Context Pack, the user works, an explicit checkpoint submits meaningful Candidate Evidence, Memoid reconciles it into Working Context, and the Project review policy controls whether eligible changes become Reviewed Durable Context. GitHub is complementary authoritative Source evidence for applicable implementation facts, not the primary product loop.
 
 Memoid is **not market-validated**. Stage 2 concluded **DO NOT BUILD / KILL** because the tested competent repository-native baseline did not justify an additional maintained context layer. Full development continues only because the founder issued a locked **BUILD FULL PRODUCT** override. That execution decision does not reverse or soften the evidence.
 
-## Current status
+## Repository contract baseline
 
-- Stage 8B: **COMPLETE — HQ RECONCILED AFTER CORRECTION**.
-- Stage 8C: **COMPLETE — HQ RECONCILED**.
-- Stage 9: **COMPLETE — PASS AFTER STAGE 9A CORRECTIONS — HQ RECONCILED**.
-- Stage 9A: **COMPLETE — HQ RECONCILED**.
-- Stage 9B: **ACTIVE — FINAL PROJECT INTEGRITY AND CONTINUITY GATE**.
-- Stage 10: **BLOCKED UNTIL STAGE 9B HQ RECONCILIATION**.
+This repository's implementation contract is synchronized through the **HQ-reconciled Stage 9C** product/domain/security/engine/workflow baseline. Repository files define implementation boundaries, ordering, proof gates, and drift-prevention contracts; they do **not independently authorize a current workstream**.
 
-This repository therefore contains a production-oriented, non-feature foundation only. It does not implement Projects, Sources, Context Records, Change Proposals, reconciliation, Context Revisions, Context Packs, product MCP tools, authentication flows, export, archive/delete, or the product database schema.
+Before implementing any product vertical, verify explicit authorization against the current canonical `00 - MEMOID HQ` / project state. A later HQ authorization of 10A, 10B, or another vertical does not require a repository status-only patch: execution authorization is owned by HQ, while this repository owns the durable implementation contract.
+
+This repository contains a production-oriented non-feature foundation and repository-native implementation contract. It does not itself claim that any product vertical is currently authorized.
 
 ## Architecture foundation
 
@@ -24,10 +21,17 @@ This repository therefore contains a production-oriented, non-feature foundation
 - MCP v2 split SDK packages with remote Streamable HTTP as the hosted adapter direction.
 - Read-only GitHub App using selective Source ingestion; no durable repository mirror.
 - Ordinary external MCP/API machine clients cannot trigger Source refresh or synchronization in V1. Source synchronization is Memoid/server-controlled.
+- Source Observation, Candidate Submission, Working Context, and Reviewed Durable Context are separate integrity planes and must remain visibly and semantically distinguishable.
+- `MANUAL` is the fail-safe/default Project review policy; `AUTOMATIC` is explicit and may only apply changes the Memoid policy engine positively proves eligible. A model never approves itself.
+- A checkpoint request authorizes submission of extracted candidate material; it does not confirm every AI-inferred assertion. Candidate-origin/confirmation provenance must be preserved.
+- Successfully accepted checkpoints remain available as explicitly lower-trust pending/unreconciled continuity during model-provider failure after deterministic authorization, validation, secret scanning, minimization, and qualification.
+- Candidate Reconciled Frontier is contiguous/gap-safe rather than `max(sequence processed)` when gaps exist.
+- Git commit count is not Memoid semantic-change count; non-default branches cannot silently replace default-branch current implementation truth.
+- Reconciliation and Resume/Context Pack generation are separate pipelines.
 - PostgreSQL full-text retrieval and pg-boss; no Redis, vector database, or embeddings in initial V1.
 - Render, S3/KMS, OpenTelemetry, and Grafana directions, with proof-gated details recorded in the ADRs.
 
-See [the ADR index](./docs/decisions/README.md) for decision status, [the architecture guide](./docs/architecture/foundation.md) for package boundaries, and [the Stage 10 entry map](./docs/implementation/stage10-entry-map.md) for the implementation order and proof gates.
+See [the ADR index](./docs/decisions/README.md), [the architecture guide](./docs/architecture/foundation.md), [the Stage 10 entry map](./docs/implementation/stage10-entry-map.md), and the complete [Stage 9C failure/race contract](./docs/implementation/stage9c-failure-race-contract.json).
 
 ## Prerequisites
 
@@ -98,6 +102,6 @@ The canonical product specification and master roadmap outrank repository guidan
 
 **feature branch → CI/security → pull request → HQ review → merge**
 
-Do not work directly on `main`, treat the founder override as market validation, or begin a later stage without explicit HQ authorization. Current GitHub plan limitations and the required pre-collaboration enforcement upgrades are recorded in [repository governance](./docs/governance/repository.md).
+Direct pushes to `main` are prohibited by governance even where GitHub cannot technically enforce them. The repository defines what implementation is allowed and what proof gates apply; `00 - MEMOID HQ` defines which workstream is currently authorized. Always check current canonical HQ/project authorization before starting or merging a vertical.
 
 Coding agents should start with [AGENTS.md](./AGENTS.md).

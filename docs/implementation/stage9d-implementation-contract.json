@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 2,
+  "status": "IMPLEMENTATION_CONTRACT_ONLY",
+  "synchronizedBaseline": "HQ_RECONCILED_STAGE_9C",
+  "executionAuthorization": {
+    "ownedBy": "CANONICAL_HQ_PROJECT_STATE",
+    "repositoryMayAuthorizeWorkstream": false,
+    "mustVerifyBeforeImplementation": true,
+    "stage10EntryMapDefinesGatesNotLiveAuthorization": true
+  },
+  "exactRepresentationProofGated": true,
+  "failureRaceContract": {
+    "path": "docs/implementation/stage9c-failure-race-contract.json",
+    "canonicalScenarioCount": 83
+  },
+  "primaryLoop": [
+    "AUTHORIZED_CLIENT_RESUME",
+    "USER_AI_WORK",
+    "EXPLICIT_CHECKPOINT",
+    "CANDIDATE_SUBMISSION",
+    "DETERMINISTIC_INTAKE_AND_RECONCILIATION",
+    "WORKING_CONTEXT",
+    "PROJECT_REVIEW_POLICY",
+    "REVIEWED_DURABLE_CONTEXT_WHEN_ELIGIBLE",
+    "AUTHORIZED_CROSS_CLIENT_RESUME"
+  ],
+  "integrityPlanes": [
+    {
+      "id": "SOURCE_OBSERVATION",
+      "trustedOnReceipt": false,
+      "qualification": ["source", "category", "scope", "ref", "authority", "freshness"]
+    },
+    {
+      "id": "CANDIDATE_SUBMISSION",
+      "trustedOnReceipt": false,
+      "qualification": [
+        "project_binding",
+        "submission_provenance",
+        "origin_confirmation",
+        "intake_state"
+      ]
+    },
+    {
+      "id": "WORKING_CONTEXT",
+      "trustedOnReceipt": false,
+      "qualification": [
+        "unreviewed",
+        "pending_or_reconciled",
+        "certainty",
+        "conflict",
+        "freshness",
+        "branch_scope"
+      ]
+    },
+    {
+      "id": "REVIEWED_DURABLE_CONTEXT",
+      "trustedOnReceipt": false,
+      "qualification": ["context_revision", "review_policy", "authority", "provenance", "freshness"]
+    }
+  ],
+  "candidateOriginClasses": [
+    "EXPLICIT_USER_AUTHORED_OR_SUFFICIENTLY_CONFIRMED",
+    "AI_INFERRED",
+    "SOURCE_OR_SYSTEM_DERIVED"
+  ],
+  "checkpoint": {
+    "means": "SUBMIT_EXTRACTED_CHECKPOINT",
+    "doesNotMean": "USER_CONFIRMS_EVERY_EXTRACTED_ASSERTION",
+    "rawTranscriptDefault": false
+  },
+  "reviewPolicy": {
+    "allowed": ["MANUAL", "AUTOMATIC"],
+    "defaultWhenMissingOrLegacy": "MANUAL",
+    "creationPresentsChoice": true,
+    "modelMayApprove": false,
+    "change": {
+      "prospective": true,
+      "requiresHumanActor": true,
+      "requiresStepUp": true,
+      "requiresAuditEvent": true,
+      "requiresMonotonicVersion": true,
+      "requiresEffectiveTimestamp": true
+    },
+    "protectedAutomaticClasses": [
+      "CONFLICT",
+      "UNCERTAINTY",
+      "STALE_OR_REVALIDATION_REQUIRED",
+      "SOURCE_AUTHORITY_CHANGE",
+      "MATERIAL_SOURCE_TOPOLOGY_CHANGE",
+      "SECURITY_SENSITIVE_CHANGE",
+      "DESTRUCTIVE_OR_HIGH_IMPACT_REMOVAL",
+      "INSUFFICIENT_ORIGIN_EVIDENCE_OR_PROVENANCE",
+      "INVALID_OR_LOW_CONFIDENCE_OUTPUT",
+      "STALE_FRESHNESS_SENSITIVE_SOURCE",
+      "BRANCH_ONLY_FUTURE_STATE",
+      "UNRESOLVED_AUTHORITY_DISAGREEMENT",
+      "PRIMARY_VERIFIER_DISAGREEMENT",
+      "NOT_POSITIVELY_PROVEN_ELIGIBLE"
+    ]
+  },
+  "sourceFrontiers": [
+    "OBSERVED_OR_DESIRED",
+    "INGESTED",
+    "RECONCILED",
+    "REVIEWED_CONTEXT_SOURCE_COVERAGE"
+  ],
+  "reviewedSourceCoverage": "VECTOR_MAP_OR_RECORD_LEVEL_RELATIONSHIP",
+  "candidateFrontier": {
+    "intake": "HIGHEST_DURABLY_ACCEPTED_SEQUENCE_ALLOWED",
+    "reconciled": "HIGHEST_CONTIGUOUS_STABLE_DISPOSITION_OR_EXPLICIT_GAP_PRESERVING_EQUIVALENT",
+    "forbidden": "MAX_SEQUENCE_PROCESSED_WHEN_GAPS_EXIST"
+  },
+  "engine": {
+    "architecture": "DETERMINISTIC_PLUS_MODEL_ASSISTED",
+    "modelTrusted": false,
+    "providerNeutralPort": true,
+    "reconciliationAndResumeSeparate": true,
+    "fallback": "EXPLICIT_ALLOWLISTED_PRIVACY_COMPATIBLE_AUDITABLE_ONLY",
+    "wholeRepositoryToModel": false,
+    "rawTranscriptToModelAsDurableTruth": false,
+    "embeddingsInitially": false
+  },
+  "deterministicCandidateIntakeBeforeModel": [
+    "AUTHORIZATION",
+    "EXACT_PROJECT_BINDING",
+    "PAYLOAD_VALIDATION",
+    "SECRET_SCANNING",
+    "SIZE_ENFORCEMENT",
+    "NORMALIZATION_AND_MINIMIZATION",
+    "SAFE_PENDING_QUALIFICATION"
+  ],
+  "github": {
+    "role": "COMPLEMENTARY_AUTHORITATIVE_SOURCE",
+    "webhookPayload": "SIGNAL_NOT_AUTHORITATIVE_SEMANTIC_MUTATION",
+    "stableIdentity": "PROVIDER_REPOSITORY_ID",
+    "mutableMetadata": ["owner", "name", "url"],
+    "externalClientMayTriggerRefresh": false,
+    "serverCatchUpRequired": true,
+    "commitCountEqualsSemanticChangeCount": false
+  },
+  "gateClasses": {
+    "A": "BEFORE_FIRST_IRREVERSIBLE_10A_SCHEMA_OR_DOMAIN_COMMITMENT_PROTECTED_BY_GATE",
+    "B": "BEFORE_NAMED_AFFECTED_VERTICAL",
+    "C": "BEFORE_PRODUCTION_HARDENING_CLOSES",
+    "D": "REPLACEABLE_WHILE_LOCKED_DOMAIN_SEMANTICS_STAY_STABLE"
+  }
+}

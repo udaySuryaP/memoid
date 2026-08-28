@@ -12,6 +12,7 @@ These ADRs record consequential accepted architecture without turning provisiona
 8. [PostgreSQL and pg-boss asynchronous operations](./0008-postgres-pg-boss-operations.md)
 9. [Deletion fencing and restore anti-resurrection](./0009-deletion-fencing-restore.md)
 10. [Hosting, storage, KMS, and observability topology](./0010-hosting-storage-observability.md)
+11. [Candidate continuity and Project review policy](./0011-candidate-continuity-review-policy.md)
 
 Status vocabulary:
 
