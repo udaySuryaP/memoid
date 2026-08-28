@@ -12,6 +12,7 @@ export const webConfigSchema = base.extend({
 export const apiConfigSchema = base.extend({
   API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   DATABASE_URL: z.string().startsWith("postgres"),
+  DATABASE_READINESS_TIMEOUT_MS: z.coerce.number().int().min(100).max(10_000).default(2_000),
 });
 export const workerConfigSchema = base.extend({ DATABASE_URL: z.string().startsWith("postgres") });
 export type WebConfig = z.infer<typeof webConfigSchema>;

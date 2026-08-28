@@ -2,10 +2,7 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
 import type { ApiConfig } from "@memoid/config";
 import { healthResponseSchema, readinessResponseSchema } from "@memoid/contracts";
 import { createCorrelationId, createLogger } from "@memoid/observability";
-export function buildServer(
-  config: ApiConfig,
-  readiness: () => Promise<boolean> = async () => true,
-): FastifyInstance {
+export function buildServer(config: ApiConfig, readiness: () => Promise<boolean>): FastifyInstance {
   const app = Fastify({
     loggerInstance: createLogger("memoid-api", config.LOG_LEVEL) as FastifyBaseLogger,
     genReqId: createCorrelationId,
@@ -14,7 +11,12 @@ export function buildServer(
     healthResponseSchema.parse({ status: "ok", service: "api", version: "0.0.0-foundation" }),
   );
   app.get("/ready", async (_request, reply) => {
-    const database = await readiness();
+    let database: boolean;
+    try {
+      database = await readiness();
+    } catch {
+      database = false;
+    }
     if (!database) reply.code(503);
     return readinessResponseSchema.parse({
       status: database ? "ready" : "not-ready",

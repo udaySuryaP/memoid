@@ -17,6 +17,42 @@ export function createDatabase(connectionString: string, max = 10): Kysely<Found
   });
 }
 
+export interface PostgresReadinessProbe {
+  check: () => Promise<boolean>;
+  close: () => Promise<void>;
+}
+
+export function createPostgresReadinessProbe(
+  connectionString: string,
+  timeoutMs: number,
+): PostgresReadinessProbe {
+  const pool = new Pool({
+    connectionString,
+    max: 2,
+    connectionTimeoutMillis: timeoutMs,
+    query_timeout: timeoutMs,
+    statement_timeout: timeoutMs,
+    application_name: "memoid-api-readiness",
+  });
+
+  // node-postgres emits idle-client/backend failures on the Pool. Handling that
+  // event here keeps a dependency outage from becoming an unhandled process
+  // error; the next bounded check remains the readiness source of truth.
+  pool.on("error", () => undefined);
+
+  return {
+    check: async () => {
+      try {
+        const result = await pool.query<{ ready: number }>("select 1 as ready");
+        return result.rows[0]?.ready === 1;
+      } catch {
+        return false;
+      }
+    },
+    close: async () => pool.end(),
+  };
+}
+
 export async function withTenantTransaction<T>(
   db: Kysely<FoundationDatabase>,
   tenantId: string,
