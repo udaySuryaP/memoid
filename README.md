@@ -8,9 +8,10 @@ Memoid is **not market-validated**. Stage 2 concluded **DO NOT BUILD / KILL** be
 
 - Stage 8B: **COMPLETE — HQ RECONCILED AFTER CORRECTION**.
 - Stage 8C: **COMPLETE — HQ RECONCILED**.
-- Stage 9: **COMPLETE — CONDITIONAL PASS — LIMITED PRE-IMPLEMENTATION CORRECTION REQUIRED**.
-- Stage 9A: **ACTIVE — STAGE 9 READINESS CORRECTIONS**.
-- Stage 10: **BLOCKED UNTIL STAGE 9A HQ RECONCILIATION**.
+- Stage 9: **COMPLETE — PASS AFTER STAGE 9A CORRECTIONS — HQ RECONCILED**.
+- Stage 9A: **COMPLETE — HQ RECONCILED**.
+- Stage 9B: **ACTIVE — FINAL PROJECT INTEGRITY AND CONTINUITY GATE**.
+- Stage 10: **BLOCKED UNTIL STAGE 9B HQ RECONCILIATION**.
 
 This repository therefore contains a production-oriented, non-feature foundation only. It does not implement Projects, Sources, Context Records, Change Proposals, reconciliation, Context Revisions, Context Packs, product MCP tools, authentication flows, export, archive/delete, or the product database schema.
 
@@ -26,7 +27,7 @@ This repository therefore contains a production-oriented, non-feature foundation
 - PostgreSQL full-text retrieval and pg-boss; no Redis, vector database, or embeddings in initial V1.
 - Render, S3/KMS, OpenTelemetry, and Grafana directions, with proof-gated details recorded in the ADRs.
 
-See [the ADR index](./docs/decisions/README.md) for decision status and [the architecture guide](./docs/architecture/foundation.md) for package boundaries.
+See [the ADR index](./docs/decisions/README.md) for decision status, [the architecture guide](./docs/architecture/foundation.md) for package boundaries, and [the Stage 10 entry map](./docs/implementation/stage10-entry-map.md) for the implementation order and proof gates.
 
 ## Prerequisites
 
