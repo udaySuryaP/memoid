@@ -6,15 +6,15 @@ on:
       - stage9d/repository-contract-sync
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  format-patch:
+  format-and-clean:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          persist-credentials: false
+          ref: stage9d/repository-contract-sync
       - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
         with:
           version: 11.24.0
@@ -23,7 +23,12 @@ jobs:
           node-version: 24.20.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Produce exact Prettier patch
+      - name: Apply exact Prettier output and remove helper
         run: |
           pnpm exec prettier --write docs/implementation/stage10-entry-map.md docs/implementation/stage9d-implementation-contract.json tests/contract/stage9d-implementation-contract.test.ts
-          git diff -- docs/implementation/stage10-entry-map.md docs/implementation/stage9d-implementation-contract.json tests/contract/stage9d-implementation-contract.test.ts
+          rm .github/workflows/stage9d-format-helper.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/implementation/stage10-entry-map.md docs/implementation/stage9d-implementation-contract.json tests/contract/stage9d-implementation-contract.test.ts .github/workflows/stage9d-format-helper.yml
+          git commit -m "style: apply Stage 9D contract formatting"
+          git push origin HEAD:stage9d/repository-contract-sync
