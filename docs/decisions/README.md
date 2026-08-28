@@ -19,3 +19,5 @@ Status vocabulary:
 - **PROVISIONAL:** a current direction that may change without reopening locked product semantics.
 - **Proof-gated:** cannot be treated as release-ready until the named evidence exists.
 - **Implementation deferred:** intentionally recorded but not implemented by the Stage 8B/8C foundation.
+
+The cross-cutting implementation-time decision register is maintained in the [Stage 10 entry map](../implementation/stage10-entry-map.md). It does not supersede these ADRs or the canonical Notion hierarchy.
