@@ -1,0 +1,29 @@
+name: Stage 9D formatter helper
+
+on:
+  push:
+    branches:
+      - stage9d/repository-contract-sync
+
+permissions:
+  contents: read
+
+jobs:
+  format-patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
+        with:
+          version: 11.24.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.20.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Produce exact Prettier patch
+        run: |
+          pnpm exec prettier --write docs/implementation/stage10-entry-map.md docs/implementation/stage9d-implementation-contract.json tests/contract/stage9d-implementation-contract.test.ts
+          git diff -- docs/implementation/stage10-entry-map.md docs/implementation/stage9d-implementation-contract.json tests/contract/stage9d-implementation-contract.test.ts
