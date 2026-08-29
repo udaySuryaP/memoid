@@ -1,10 +1,11 @@
 # Agent guide
 
-This repository's implementation contract is synchronized through the **HQ-reconciled Stage 9C** baseline. Repository guidance defines durable implementation boundaries, proof gates, and engineering invariants; it does **not independently authorize a current workstream**.
+This repository's implementation contract is synchronized through the **HQ-reconciled Stage 9C** baseline. Repository guidance defines durable implementation boundaries, proof gates, and engineering invariants; it does not independently authorize a current workstream.
 
 Before implementing or merging any product vertical, verify explicit authorization against the current canonical `00 - MEMOID HQ` / project state. Do not infer live authorization from repository status prose, branch names, PR state, or the Stage 10 entry map.
 
 - Architecture and dependency boundaries: `docs/architecture/foundation.md`
+- Stage 10A domain/schema inventory: `docs/architecture/domain-kernel-schema.md`
 - Consequential decisions and status: `docs/decisions/README.md`
 - Security boundaries and tests: `docs/security/foundation.md`
 - Provider boundaries: `docs/integrations/provider-boundaries.md`

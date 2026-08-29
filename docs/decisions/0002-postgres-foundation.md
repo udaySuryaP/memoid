@@ -1,6 +1,6 @@
 # ADR 0002: PostgreSQL, Kysely, and RLS foundation
 
-Status: Accepted by Stage 8; foundation executed in Stage 8B; repository record aligned in Stage 8C.
+Status: Accepted by Stage 8; foundation executed in Stage 8B; Stage 10A product schema executed under this decision.
 
 ## Decision status
 
@@ -10,7 +10,7 @@ Status: Accepted by Stage 8; foundation executed in Stage 8B; repository record 
 - **LOCKED:** no Redis, vector database, or embedding pipeline in initial V1 without measured need.
 - **PROVISIONAL:** exact production pooler, connection limits, full-text ranking, and operational thresholds.
 - **Proof-gated:** every product tenant table must prove forced-RLS isolation and owner/`BYPASSRLS` separation before release.
-- **Implementation deferred:** product tables, retention rules, and production migrations begin only in an authorized implementation stage.
+- **Implemented in 10A:** foundational product tables and reversible migration structure. Runtime RLS policies/grants remain deferred to 10C; retention and production-hardening mechanisms remain deferred to their owning stages.
 
 ## Decision
 
