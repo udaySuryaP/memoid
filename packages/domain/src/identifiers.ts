@@ -20,9 +20,3 @@ export function parseUuidV7<Kind extends string>(value: string, kind: Kind): Opa
   if (!UUID_V7.test(normalized)) throw new Error(`${kind} must be a canonical UUIDv7`);
   return normalized as OpaqueId<Kind>;
 }
-
-export interface RequestActor {
-  readonly accountId: AccountId;
-  readonly workspaceId: WorkspaceId;
-  readonly projectId?: ProjectId;
-}

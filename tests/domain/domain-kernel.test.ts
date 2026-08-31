@@ -67,6 +67,33 @@ describe("candidate origin and confirmation", () => {
       } as CandidateAssertionBasis),
     ).toThrow("requires Account and timestamp");
   });
+
+  it("rejects unknown confirmation values and malformed confirmation combinations", () => {
+    const confirmedAt = parseInstant("2026-08-29T01:02:03Z");
+    expect(() =>
+      candidateAssertionBasis({
+        origin: "AI_INFERRED",
+        confirmation: "MODEL_ASSUMED",
+        confirmedAt,
+        confirmedByAccountId: ACCOUNT_ID,
+      } as unknown as CandidateAssertionBasis),
+    ).toThrow("Unsupported assertion confirmation");
+    expect(() =>
+      candidateAssertionBasis({
+        origin: "USER_AUTHORED",
+        confirmation: "NONE",
+        confirmedAt,
+        confirmedByAccountId: ACCOUNT_ID,
+      } as unknown as CandidateAssertionBasis),
+    ).toThrow("cannot carry confirmation attribution");
+    expect(() =>
+      candidateAssertionBasis({
+        origin: "SOURCE_DERIVED",
+        confirmation: "EXPLICIT_USER",
+        confirmedAt,
+      } as unknown as CandidateAssertionBasis),
+    ).toThrow("requires Account and timestamp");
+  });
 });
 
 describe("Context Identity", () => {

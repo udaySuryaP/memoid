@@ -252,7 +252,7 @@ async function createTables(db: Kysely<unknown>): Promise<void> {
     constraint working_context_items_trust check (trust_qualification in ('PENDING_UNRECONCILED', 'RECONCILED_UNREVIEWED')),
     constraint working_context_items_reconciled_time check (
       (trust_qualification = 'PENDING_UNRECONCILED' and reconciled_at is null) or
-      (trust_qualification = 'RECONCILED_UNREVIEWED' and reconciled_at is not null)
+      (trust_qualification = 'RECONCILED_UNREVIEWED' and reconciled_at is not null and reconciled_at >= recorded_at)
     ),
     constraint working_context_items_payload check (jsonb_typeof(assertion_payload) = 'object' and octet_length(assertion_payload::text) <= 65536),
     constraint working_context_items_hash check (octet_length(assertion_hash) = 32),
@@ -414,6 +414,9 @@ async function createPolicyAndFrontierFunctions(db: Kysely<unknown>): Promise<vo
         record_project_id := old.project_id;
         record_id := old.context_record_id;
       end if;
+      perform 1 from memoid.context_records
+        where workspace_id = record_workspace_id and project_id = record_project_id and id = record_id
+        for update;
       if not exists (
         select 1 from memoid.context_record_candidate_provenance
           where workspace_id = record_workspace_id and project_id = record_project_id and context_record_id = record_id

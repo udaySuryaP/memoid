@@ -68,6 +68,104 @@ async function addContextIdentity(db: Kysely<MemoidDatabase>, scope: Scope): Pro
   return result.rows[0]!.id;
 }
 
+type ReviewedProvenanceFixture = {
+  scope: Scope;
+  candidateAssertionId: string;
+  candidateSubmissionId: string;
+  contextIdentityId: string;
+  contextRecordId: string;
+  contextRevisionId: string;
+  sourceObservationId: string;
+};
+
+async function createDualProvenanceReviewedRecord(
+  db: Kysely<MemoidDatabase>,
+): Promise<ReviewedProvenanceFixture> {
+  const scope = await createProject(db);
+  await addPolicy(db, scope, 1, "MANUAL");
+  const candidateSubmissionId = await addCandidate(db, scope, 1);
+  const candidateAssertionId = await addAssertion(db, scope, candidateSubmissionId);
+  const contextIdentityId = await addContextIdentity(db, scope);
+  const source = await sql<{ id: string }>`insert into memoid.sources
+    (workspace_id, project_id, source_kind)
+    values (${scope.workspaceId}::uuid, ${scope.projectId}::uuid, 'GITHUB_REPOSITORY')
+    returning id::text`.execute(db);
+  const frontierUnit = await sql<{ id: string }>`insert into memoid.source_frontier_units
+    (workspace_id, project_id, source_id, scope_key, ref_key)
+    values (${scope.workspaceId}::uuid, ${scope.projectId}::uuid, ${source.rows[0]!.id}::uuid, 'database', 'refs/heads/main')
+    returning id::text`.execute(db);
+  const observation = await sql<{ id: string }>`insert into memoid.source_observations
+    (workspace_id, project_id, frontier_unit_id, observation_sequence, external_revision, observed_at)
+    values (${scope.workspaceId}::uuid, ${scope.projectId}::uuid, ${frontierUnit.rows[0]!.id}::uuid, 1, 'sha-reviewed', '2026-08-29T00:30:00Z'::timestamptz)
+    returning id::text`.execute(db);
+  const reviewed = await db.transaction().execute(async (trx) => {
+    const revision = await sql<{ id: string }>`insert into memoid.context_revisions
+      (workspace_id, project_id, revision_sequence, review_policy_version, decision_mode, applied_by_account_id, applied_at)
+      values (${scope.workspaceId}::uuid, ${scope.projectId}::uuid, 1, 1, 'MANUAL', ${scope.accountId}::uuid, '2026-08-29T02:00:00Z'::timestamptz)
+      returning id::text`.execute(trx);
+    const record = await sql<{ id: string }>`insert into memoid.context_records
+      (workspace_id, project_id, context_identity_id, context_revision_id, assertion_payload, assertion_hash, reviewed_at, created_at)
+      values (${scope.workspaceId}::uuid, ${scope.projectId}::uuid, ${contextIdentityId}::uuid, ${revision.rows[0]!.id}::uuid, '{"value":"postgresql"}'::jsonb, decode(repeat('51',32),'hex'), '2026-08-29T02:00:00Z'::timestamptz, '2026-08-29T02:00:00Z'::timestamptz)
+      returning id::text`.execute(trx);
+    await sql`insert into memoid.context_record_candidate_provenance
+      (workspace_id, project_id, context_record_id, candidate_assertion_id, relation_kind)
+      values (${scope.workspaceId}::uuid, ${scope.projectId}::uuid, ${record.rows[0]!.id}::uuid, ${candidateAssertionId}::uuid, 'ORIGINATES')`.execute(
+      trx,
+    );
+    await sql`insert into memoid.context_record_source_provenance
+      (workspace_id, project_id, context_record_id, source_observation_id, relation_kind)
+      values (${scope.workspaceId}::uuid, ${scope.projectId}::uuid, ${record.rows[0]!.id}::uuid, ${observation.rows[0]!.id}::uuid, 'SUPPORTS')`.execute(
+      trx,
+    );
+    return { contextRecordId: record.rows[0]!.id, contextRevisionId: revision.rows[0]!.id };
+  });
+  return {
+    scope,
+    candidateAssertionId,
+    candidateSubmissionId,
+    contextIdentityId,
+    contextRecordId: reviewed.contextRecordId,
+    contextRevisionId: reviewed.contextRevisionId,
+    sourceObservationId: observation.rows[0]!.id,
+  };
+}
+
+async function readReviewedRecordState(
+  db: Kysely<MemoidDatabase>,
+  fixture: ReviewedProvenanceFixture,
+): Promise<{
+  assertionPayload: string;
+  candidateProvenance: string;
+  contextRevisionId: string;
+  recordCount: string;
+  revisionCount: string;
+  sourceProvenance: string;
+}> {
+  const result = await sql<{
+    assertionPayload: string;
+    candidateProvenance: string;
+    contextRevisionId: string;
+    recordCount: string;
+    revisionCount: string;
+    sourceProvenance: string;
+  }>`select
+      (select assertion_payload::text from memoid.context_records
+        where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid and id = ${fixture.contextRecordId}::uuid) as "assertionPayload",
+      (select count(*)::text from memoid.context_record_candidate_provenance
+        where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid and context_record_id = ${fixture.contextRecordId}::uuid) as "candidateProvenance",
+      (select context_revision_id::text from memoid.context_records
+        where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid and id = ${fixture.contextRecordId}::uuid) as "contextRevisionId",
+      (select count(*)::text from memoid.context_records
+        where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid and id = ${fixture.contextRecordId}::uuid) as "recordCount",
+      (select count(*)::text from memoid.context_revisions
+        where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid and id = ${fixture.contextRevisionId}::uuid) as "revisionCount",
+      (select count(*)::text from memoid.context_record_source_provenance
+        where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid and context_record_id = ${fixture.contextRecordId}::uuid) as "sourceProvenance"`.execute(
+    db,
+  );
+  return result.rows[0]!;
+}
+
 suite("Stage 10A PostgreSQL contract", () => {
   let isolated: IsolatedTestDatabase;
 
@@ -95,6 +193,150 @@ suite("Stage 10A PostgreSQL contract", () => {
         isolated.db,
       ),
     ).rejects.toThrow();
+  });
+
+  it("persists Working Context successfully without conflating the four integrity planes", async () => {
+    const fixture = await createDualProvenanceReviewedRecord(isolated.db);
+    const reviewedBefore = await readReviewedRecordState(isolated.db, fixture);
+    const working = await sql<{
+      candidateAssertionId: string;
+      contextIdentityId: string;
+      id: string;
+      policyVersion: string;
+      projectId: string;
+      timestampConsistent: boolean;
+      trustQualification: string;
+      workspaceId: string;
+    }>`insert into memoid.working_context_items
+      (workspace_id, project_id, context_identity_id, candidate_assertion_id, trust_qualification, assertion_payload, assertion_hash, governing_review_policy_version, recorded_at, reconciled_at)
+      values (${fixture.scope.workspaceId}::uuid, ${fixture.scope.projectId}::uuid, ${fixture.contextIdentityId}::uuid, ${fixture.candidateAssertionId}::uuid, 'RECONCILED_UNREVIEWED', '{"value":"working-only"}'::jsonb, decode(repeat('52',32),'hex'), 1, '2026-08-29T01:00:00Z'::timestamptz, '2026-08-29T01:30:00Z'::timestamptz)
+      returning id::text, workspace_id::text as "workspaceId", project_id::text as "projectId",
+        context_identity_id::text as "contextIdentityId", candidate_assertion_id::text as "candidateAssertionId",
+        governing_review_policy_version::text as "policyVersion", trust_qualification as "trustQualification",
+        reconciled_at >= recorded_at as "timestampConsistent"`.execute(isolated.db);
+    expect(working.rows[0]).toMatchObject({
+      workspaceId: fixture.scope.workspaceId,
+      projectId: fixture.scope.projectId,
+      contextIdentityId: fixture.contextIdentityId,
+      candidateAssertionId: fixture.candidateAssertionId,
+      policyVersion: "1",
+      trustQualification: "RECONCILED_UNREVIEWED",
+      timestampConsistent: true,
+    });
+    expect(
+      new Set([
+        fixture.sourceObservationId,
+        fixture.candidateSubmissionId,
+        working.rows[0]!.id,
+        fixture.contextRecordId,
+      ]).size,
+    ).toBe(4);
+    const planes = await sql<{
+      candidates: string;
+      reviewed: string;
+      sources: string;
+      working: string;
+    }>`select
+      (select count(*)::text from memoid.source_observations) as sources,
+      (select count(*)::text from memoid.candidate_submissions) as candidates,
+      (select count(*)::text from memoid.working_context_items) as working,
+      (select count(*)::text from memoid.context_records) as reviewed`.execute(isolated.db);
+    expect(planes.rows[0]).toEqual({ sources: "1", candidates: "1", working: "1", reviewed: "1" });
+    expect(await readReviewedRecordState(isolated.db, fixture)).toEqual(reviewedBefore);
+    await expect(
+      sql`insert into memoid.working_context_items
+        (workspace_id, project_id, context_identity_id, candidate_assertion_id, trust_qualification, assertion_payload, assertion_hash, governing_review_policy_version, recorded_at, reconciled_at)
+        values (${fixture.scope.workspaceId}::uuid, ${fixture.scope.projectId}::uuid, ${fixture.contextIdentityId}::uuid, ${fixture.candidateAssertionId}::uuid, 'RECONCILED_UNREVIEWED', '{"value":"time-reversed"}'::jsonb, decode(repeat('53',32),'hex'), 1, '2026-08-29T01:30:00Z'::timestamptz, '2026-08-29T01:00:00Z'::timestamptz)`.execute(
+        isolated.db,
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("allows Candidate provenance deletion but rejects deleting the final Source edge", async () => {
+    const fixture = await createDualProvenanceReviewedRecord(isolated.db);
+    const reviewedBefore = await readReviewedRecordState(isolated.db, fixture);
+    await sql`delete from memoid.context_record_candidate_provenance
+      where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid
+        and context_record_id = ${fixture.contextRecordId}::uuid and candidate_assertion_id = ${fixture.candidateAssertionId}::uuid`.execute(
+      isolated.db,
+    );
+    await expect(
+      sql`delete from memoid.context_record_source_provenance
+        where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid
+          and context_record_id = ${fixture.contextRecordId}::uuid and source_observation_id = ${fixture.sourceObservationId}::uuid`.execute(
+        isolated.db,
+      ),
+    ).rejects.toThrow("requires Candidate or Source provenance");
+    expect(await readReviewedRecordState(isolated.db, fixture)).toEqual({
+      ...reviewedBefore,
+      candidateProvenance: "0",
+      sourceProvenance: "1",
+    });
+  });
+
+  it("allows Source provenance deletion but rejects deleting the final Candidate edge", async () => {
+    const fixture = await createDualProvenanceReviewedRecord(isolated.db);
+    const reviewedBefore = await readReviewedRecordState(isolated.db, fixture);
+    await sql`delete from memoid.context_record_source_provenance
+      where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid
+        and context_record_id = ${fixture.contextRecordId}::uuid and source_observation_id = ${fixture.sourceObservationId}::uuid`.execute(
+      isolated.db,
+    );
+    await expect(
+      sql`delete from memoid.context_record_candidate_provenance
+        where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid
+          and context_record_id = ${fixture.contextRecordId}::uuid and candidate_assertion_id = ${fixture.candidateAssertionId}::uuid`.execute(
+        isolated.db,
+      ),
+    ).rejects.toThrow("requires Candidate or Source provenance");
+    expect(await readReviewedRecordState(isolated.db, fixture)).toEqual({
+      ...reviewedBefore,
+      candidateProvenance: "1",
+      sourceProvenance: "0",
+    });
+  });
+
+  it("serializes concurrent Candidate-versus-Source final-edge deletion on the Context Record", async () => {
+    const fixture = await createDualProvenanceReviewedRecord(isolated.db);
+    const reviewedBefore = await readReviewedRecordState(isolated.db, fixture);
+    let stagedDeletions = 0;
+    let releaseDeletions!: () => void;
+    const bothDeletionsStaged = new Promise<void>((resolve) => {
+      releaseDeletions = resolve;
+    });
+    const stageDeletion = async (kind: "candidate" | "source") =>
+      isolated.db.transaction().execute(async (trx) => {
+        if (kind === "candidate") {
+          await sql`delete from memoid.context_record_candidate_provenance
+            where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid
+              and context_record_id = ${fixture.contextRecordId}::uuid and candidate_assertion_id = ${fixture.candidateAssertionId}::uuid`.execute(
+            trx,
+          );
+        } else {
+          await sql`delete from memoid.context_record_source_provenance
+            where workspace_id = ${fixture.scope.workspaceId}::uuid and project_id = ${fixture.scope.projectId}::uuid
+              and context_record_id = ${fixture.contextRecordId}::uuid and source_observation_id = ${fixture.sourceObservationId}::uuid`.execute(
+            trx,
+          );
+        }
+        stagedDeletions += 1;
+        if (stagedDeletions === 2) releaseDeletions();
+        await bothDeletionsStaged;
+      });
+    const attempts = await Promise.allSettled([
+      stageDeletion("candidate"),
+      stageDeletion("source"),
+    ]);
+    expect(attempts.filter((attempt) => attempt.status === "fulfilled")).toHaveLength(1);
+    expect(attempts.filter((attempt) => attempt.status === "rejected")).toHaveLength(1);
+    const finalState = await readReviewedRecordState(isolated.db, fixture);
+    expect(Number(finalState.candidateProvenance) + Number(finalState.sourceProvenance)).toBe(1);
+    expect(finalState).toMatchObject({
+      assertionPayload: reviewedBefore.assertionPayload,
+      contextRevisionId: reviewedBefore.contextRevisionId,
+      recordCount: "1",
+      revisionCount: "1",
+    });
   });
 
   it("enforces append-only policy version ordering, values, effectivity, and attribution", async () => {

@@ -29,12 +29,16 @@ export type CandidateAssertionBasis =
 export function candidateAssertionBasis(input: CandidateAssertionBasis): CandidateAssertionBasis {
   if (!(ASSERTION_ORIGINS as readonly string[]).includes(input.origin))
     throw new Error(`Unsupported assertion origin: ${input.origin}`);
-  if (input.confirmation === "NONE") {
+  const confirmation: unknown = input.confirmation;
+  if (confirmation === "NONE") {
     if (input.confirmedAt !== undefined || input.confirmedByAccountId !== undefined)
       throw new Error("Unconfirmed assertions cannot carry confirmation attribution");
-    return Object.freeze({ origin: input.origin, confirmation: input.confirmation });
+    return Object.freeze({ origin: input.origin, confirmation });
   }
-  if (!input.confirmedAt || !input.confirmedByAccountId)
-    throw new Error("Explicit user confirmation requires Account and timestamp attribution");
-  return Object.freeze({ ...input });
+  if (confirmation === "EXPLICIT_USER") {
+    if (!input.confirmedAt || !input.confirmedByAccountId)
+      throw new Error("Explicit user confirmation requires Account and timestamp attribution");
+    return Object.freeze({ ...input, confirmation });
+  }
+  throw new Error(`Unsupported assertion confirmation: ${String(confirmation)}`);
 }
