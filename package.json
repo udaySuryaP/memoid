@@ -2,7 +2,7 @@
   "name": "memoid",
   "version": "0.0.0-foundation",
   "private": true,
-  "description": "Memoid production foundation (Stage 8B; no product features)",
+  "description": "Memoid production monorepo and source-aware context-control domain foundation",
   "license": "UNLICENSED",
   "type": "module",
   "packageManager": "pnpm@11.24.0",

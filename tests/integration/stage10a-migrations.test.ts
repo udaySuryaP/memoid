@@ -1,0 +1,174 @@
+import { createMigrator, migrateToLatest } from "@memoid/db";
+import { sql } from "kysely";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createIsolatedTestDatabase, type IsolatedTestDatabase } from "./stage10a-test-database.js";
+
+const adminUrl = process.env.INTEGRATION_DATABASE_ADMIN_URL;
+const suite = adminUrl ? describe : describe.skip;
+const stage10aTables = [
+  "accounts",
+  "candidate_assertions",
+  "candidate_frontier_states",
+  "candidate_stable_dispositions",
+  "candidate_submissions",
+  "context_identities",
+  "context_identity_current_records",
+  "context_record_candidate_provenance",
+  "context_record_source_coverage",
+  "context_record_source_provenance",
+  "context_records",
+  "context_revisions",
+  "project_review_policy_versions",
+  "projects",
+  "source_frontier_states",
+  "source_frontier_units",
+  "source_observations",
+  "sources",
+  "working_context_items",
+  "workspaces",
+];
+
+suite("Stage 10A migrations", () => {
+  let isolated: IsolatedTestDatabase;
+
+  beforeAll(async () => {
+    isolated = await createIsolatedTestDatabase(adminUrl!, "10a_migrations");
+  });
+
+  afterAll(async () => isolated.destroy());
+
+  it("applies a blank database through the deterministic latest schema", async () => {
+    await migrateToLatest(isolated.db);
+    const tables = await sql<{ table_name: string }>`select table_name
+      from information_schema.tables where table_schema = 'memoid' order by table_name`.execute(
+      isolated.db,
+    );
+    expect(tables.rows.map((row) => row.table_name)).toEqual(stage10aTables);
+    const generated = await sql<{
+      id: string;
+      version: number;
+    }>`insert into memoid.accounts default values
+      returning id::text, uuid_extract_version(id) as version`.execute(isolated.db);
+    expect(generated.rows[0]?.version).toBe(7);
+  });
+
+  it("is a no-op when migrate-to-latest is repeated", async () => {
+    await expect(migrateToLatest(isolated.db)).resolves.toBeUndefined();
+    const applied = await createMigrator(isolated.db).getMigrations();
+    expect(applied.filter((migration) => migration.executedAt !== undefined)).toHaveLength(2);
+  });
+
+  it("upgrades the repository-managed 001 foundation to 002 and can roll 002 back safely", async () => {
+    const upgrade = await createIsolatedTestDatabase(adminUrl!, "10a_upgrade_001_002");
+    try {
+      const foundationResult = await createMigrator(upgrade.db).migrateTo("001_foundation_rls");
+      expect(foundationResult.error).toBeUndefined();
+      const foundation = await sql<{
+        forced: boolean;
+        owner: string;
+        policy: string;
+        rls: boolean;
+        tableExists: boolean;
+      }>`select
+          to_regclass('foundation.tenant_probe') is not null as "tableExists",
+          c.relrowsecurity as rls,
+          c.relforcerowsecurity as forced,
+          pg_get_userbyid(c.relowner) as owner,
+          (select policyname from pg_policies where schemaname = 'foundation' and tablename = 'tenant_probe') as policy
+        from pg_class c
+        where c.oid = to_regclass('foundation.tenant_probe')`.execute(upgrade.db);
+      expect(foundation.rows[0]).toEqual({
+        tableExists: true,
+        rls: true,
+        forced: true,
+        owner: "memoid_owner",
+        policy: "tenant_isolation",
+      });
+      expect(
+        (await createMigrator(upgrade.db).getMigrations())
+          .filter((migration) => migration.executedAt !== undefined)
+          .map((migration) => migration.name),
+      ).toEqual(["001_foundation_rls"]);
+
+      const productResult = await createMigrator(upgrade.db).migrateTo(
+        "002_stage10a_domain_schema",
+      );
+      expect(productResult.error).toBeUndefined();
+      const upgraded = await sql<{
+        constraintCount: string;
+        foundationStillValid: boolean;
+        provenanceFunction: boolean;
+      }>`select
+          to_regclass('foundation.tenant_probe') is not null
+            and (select relrowsecurity and relforcerowsecurity from pg_class where oid = to_regclass('foundation.tenant_probe'))
+            and exists (select 1 from pg_policies where schemaname = 'foundation' and tablename = 'tenant_probe' and policyname = 'tenant_isolation')
+            as "foundationStillValid",
+          to_regprocedure('memoid.require_context_record_provenance()') is not null as "provenanceFunction",
+          (select count(*)::text from pg_constraint c join pg_namespace n on n.oid = c.connamespace where n.nspname = 'memoid') as "constraintCount"`.execute(
+        upgrade.db,
+      );
+      expect(upgraded.rows[0]).toMatchObject({
+        foundationStillValid: true,
+        provenanceFunction: true,
+      });
+      expect(Number(upgraded.rows[0]?.constraintCount)).toBeGreaterThan(40);
+      const productTables = await sql<{ table_name: string }>`select table_name
+        from information_schema.tables where table_schema = 'memoid' order by table_name`.execute(
+        upgrade.db,
+      );
+      expect(productTables.rows.map((row) => row.table_name)).toEqual(stage10aTables);
+      expect(
+        (await createMigrator(upgrade.db).getMigrations())
+          .filter((migration) => migration.executedAt !== undefined)
+          .map((migration) => migration.name),
+      ).toEqual(["001_foundation_rls", "002_stage10a_domain_schema"]);
+
+      const rollback = await createMigrator(upgrade.db).migrateDown();
+      expect(rollback.error).toBeUndefined();
+      const rolledBack = await sql<{
+        foundationStillValid: boolean;
+        productSchemaExists: boolean;
+      }>`select
+          to_regclass('foundation.tenant_probe') is not null
+            and (select relrowsecurity and relforcerowsecurity from pg_class where oid = to_regclass('foundation.tenant_probe'))
+            and exists (select 1 from pg_policies where schemaname = 'foundation' and tablename = 'tenant_probe' and policyname = 'tenant_isolation')
+            as "foundationStillValid",
+          exists (select 1 from information_schema.schemata where schema_name = 'memoid') as "productSchemaExists"`.execute(
+        upgrade.db,
+      );
+      expect(rolledBack.rows[0]).toEqual({
+        foundationStillValid: true,
+        productSchemaExists: false,
+      });
+      expect(
+        (await createMigrator(upgrade.db).getMigrations())
+          .filter((migration) => migration.executedAt !== undefined)
+          .map((migration) => migration.name),
+      ).toEqual(["001_foundation_rls"]);
+    } finally {
+      await upgrade.destroy();
+    }
+  });
+
+  it("round-trips down and back up without schema drift", async () => {
+    const downProduct = await createMigrator(isolated.db).migrateDown();
+    expect(downProduct.error).toBeUndefined();
+    const productSchema = await sql<{ exists: boolean }>`select exists (
+      select 1 from information_schema.schemata where schema_name = 'memoid'
+    ) as exists`.execute(isolated.db);
+    expect(productSchema.rows[0]?.exists).toBe(false);
+
+    const downFoundation = await createMigrator(isolated.db).migrateDown();
+    expect(downFoundation.error).toBeUndefined();
+    const foundationSchema = await sql<{ exists: boolean }>`select exists (
+      select 1 from information_schema.schemata where schema_name = 'foundation'
+    ) as exists`.execute(isolated.db);
+    expect(foundationSchema.rows[0]?.exists).toBe(false);
+
+    await migrateToLatest(isolated.db);
+    const constraints = await sql<{ count: string }>`select count(*)::text as count
+      from pg_constraint c join pg_namespace n on n.oid = c.connamespace
+      where n.nspname = 'memoid'`.execute(isolated.db);
+    expect(Number(constraints.rows[0]?.count)).toBeGreaterThan(40);
+  });
+});

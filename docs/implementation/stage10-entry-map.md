@@ -2,7 +2,7 @@
 
 Repository implementation contract baseline: **HQ-reconciled Stage 9C**.
 
-This repository defines gates, prerequisites, proof ownership, and durable implementation boundaries. It **does not independently authorize a current workstream**. Before implementing or merging any vertical, verify explicit authorization against the current canonical `00 - MEMOID HQ` / project state. The entry map must remain valid when HQ later authorizes 10A, 10B, or another vertical without a status-only repository patch.
+This repository defines gates, prerequisites, proof ownership, and durable implementation boundaries. It does not independently authorize a current workstream. Before implementing or merging any vertical, verify explicit authorization against the current canonical `00 - MEMOID HQ` / project state. The entry map must remain valid when HQ later authorizes 10A, 10B, or another vertical without a status-only repository patch.
 
 This is the repository execution companion to the canonical specification and roadmap. Canonical project state retains authority. If this file conflicts with the canonical hierarchy, stop and reconcile through HQ before coding. It records implementation order and proof gates; it does not add product semantics.
 

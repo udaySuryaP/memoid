@@ -4,7 +4,7 @@ Memoid is a TypeScript modular monolith with independently started web, API, and
 
 The web runtime is Next.js App Router. The API is Fastify. The worker hosts pg-boss consumers. PostgreSQL is authoritative; Kysely owns forward migrations. Tenant data access must run inside a transaction using transaction-local `memoid.tenant_id`, with forced RLS as the database backstop.
 
-This stage contains synthetic probes only. It does not define Memoid product entities, routes, tools, sync logic, exports, or destructive behavior.
+The original foundation retains its synthetic RLS/readiness/job probes. Stage 10A adds only the pure domain kernel and foundational product schema documented in `docs/architecture/domain-kernel-schema.md`. It still adds no product routes, tools, synchronization runtime, exports, or destructive behavior.
 
 Ordinary external MCP/API machine clients cannot trigger Source refresh or synchronization in V1. GitHub Source ingestion and synchronization remain Memoid/server-controlled; external clients may use authorized read, status, candidate-evidence, and reconciliation capabilities only.
 

@@ -1,6 +1,6 @@
 # ADR 0011: Candidate continuity and Project review policy
 
-Status: Accepted from the Stage 9C canonical contract; repository record added in Stage 9D. Runtime implementation is deferred.
+Status: Accepted from the Stage 9C canonical contract; repository record added in Stage 9D; foundational persistence implemented in Stage 10A. Runtime behavior remains deferred.
 
 ## Decision status
 
@@ -14,9 +14,9 @@ Status: Accepted from the Stage 9C canonical contract; repository record added i
 - **LOCKED:** Conflict, Uncertainty, stale/revalidation-required state, Source Authority or material topology change, security-sensitive or destructive change, insufficient evidence/origin/provenance, invalid/low-confidence output, stale freshness-sensitive Source, branch-only future state, authority disagreement, verifier disagreement, and anything not positively proven eligible remain protected.
 - **LOCKED:** Manual → Automatic and Automatic → Manual changes are prospective. Pending items retain their original policy snapshot; no mass acceptance occurs; accepted revision history remains immutable; corrections create successors.
 - **LOCKED:** a successfully accepted checkpoint remains available as explicitly pending/unreconciled lower-trust continuity during model-provider failure after deterministic safe intake. It cannot override reviewed truth, authoritative Source state, Conflict, or Uncertainty.
-- **PROVISIONAL:** physical storage, exact type names, Resume presentation, policy UI mechanics, and host-specific user-confirmation signals.
+- **Implemented in 10A:** separate plane tables, orthogonal Candidate origin/confirmation fields, append-oriented review-policy versions, and gap-safe Candidate frontier representation. Resume presentation, policy UI/runtime mechanics, and host-specific user-confirmation signals remain proof-gated.
 - **Proof-gated:** 10A proves persistence without plane conflation; 10L/10M prove eligibility, transitions, concurrent policy/frontier change, and atomic application; 10O proves trust-qualified Resume; 10P/10L prove whether a host can supply a trustworthy explicit user-confirmation signal.
-- **Implementation deferred:** no product schema, migration, policy engine, candidate intake, Working Context, Resume Pack, reconciliation, MCP tool, or UI behavior is implemented by this ADR.
+- **Runtime deferred:** no policy engine, Candidate/API intake path, Working Context behavior, Resume Pack, reconciliation, MCP tool, or UI behavior is implemented by this ADR or Stage 10A.
 
 ## Decision
 

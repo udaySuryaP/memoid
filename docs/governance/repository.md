@@ -4,7 +4,7 @@ Repository: private, personal-account-owned `udaySuryaP/memoid`.
 
 ## Durable contract versus execution authorization
 
-This repository's implementation contract is synchronized through the **HQ-reconciled Stage 9C** baseline. The repository owns durable engineering boundaries, branch/PR controls, implementation ordering, proof gates, and contract tests. It does **not independently authorize a current workstream**.
+This repository's implementation contract is synchronized through the **HQ-reconciled Stage 9C** baseline. The repository owns durable engineering boundaries, branch/PR controls, implementation ordering, proof gates, and contract tests. It does not independently authorize a current workstream.
 
 Current execution authorization is owned by `00 - MEMOID HQ` / canonical project state. Before starting or merging any vertical, verify explicit current HQ authorization. A later HQ transition from 10A to 10B or any other workstream must not require a repository status-only patch merely to keep this governance document true.
 

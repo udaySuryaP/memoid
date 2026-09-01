@@ -10,13 +10,14 @@ This repository's implementation contract is synchronized through the **HQ-recon
 
 Before implementing any product vertical, verify explicit authorization against the current canonical `00 - MEMOID HQ` / project state. A later HQ authorization of 10A, 10B, or another vertical does not require a repository status-only patch: execution authorization is owned by HQ, while this repository owns the durable implementation contract.
 
-This repository contains a production-oriented non-feature foundation and repository-native implementation contract. It does not itself claim that any product vertical is currently authorized.
+This repository contains the production-oriented foundation, repository-native implementation contract, and the Stage 10A domain/schema implementation. The repository does not independently authorize any current or later product vertical.
 
 ## Architecture foundation
 
 - TypeScript modular monolith in a private pnpm/Turborepo monorepo.
 - Separate Next.js web, Fastify API/MCP, and pg-boss worker process roles around one Domain/Application Core; these roles are not microservices.
 - PostgreSQL 18 with Kysely/`pg`; application authorization is primary and transaction-scoped RLS is defense-in-depth.
+- Stage 10A adds the provider-free domain kernel and deny-by-default `memoid` schema for the four integrity planes, versioned Project review policy, gap-safe Candidate frontier, per-Source/ref frontiers, Context Identity/currentness, and provenance/coverage foundations.
 - WorkOS AuthKit direction with Memoid-owned stable identity, session, authorization, and security state.
 - MCP v2 split SDK packages with remote Streamable HTTP as the hosted adapter direction.
 - Read-only GitHub App using selective Source ingestion; no durable repository mirror.
@@ -31,7 +32,7 @@ This repository contains a production-oriented non-feature foundation and reposi
 - PostgreSQL full-text retrieval and pg-boss; no Redis, vector database, or embeddings in initial V1.
 - Render, S3/KMS, OpenTelemetry, and Grafana directions, with proof-gated details recorded in the ADRs.
 
-See [the ADR index](./docs/decisions/README.md), [the architecture guide](./docs/architecture/foundation.md), [the Stage 10 entry map](./docs/implementation/stage10-entry-map.md), and the complete [Stage 9C failure/race contract](./docs/implementation/stage9c-failure-race-contract.json).
+See [the ADR index](./docs/decisions/README.md), [the architecture guide](./docs/architecture/foundation.md), [the Stage 10A domain/schema inventory](./docs/architecture/domain-kernel-schema.md), [the Stage 10 entry map](./docs/implementation/stage10-entry-map.md), and the complete [Stage 9C failure/race contract](./docs/implementation/stage9c-failure-race-contract.json).
 
 ## Prerequisites
 
