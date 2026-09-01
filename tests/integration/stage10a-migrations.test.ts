@@ -1,4 +1,4 @@
-import { createMigrator, migrateToLatest } from "@memoid/db";
+import { createMigrator } from "@memoid/db";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createIsolatedTestDatabase, type IsolatedTestDatabase } from "./stage10a-test-database.js";
@@ -37,8 +37,9 @@ suite("Stage 10A migrations", () => {
 
   afterAll(async () => isolated.destroy());
 
-  it("applies a blank database through the deterministic latest schema", async () => {
-    await migrateToLatest(isolated.db);
+  it("applies a blank database through the deterministic Stage 10A schema", async () => {
+    const result = await createMigrator(isolated.db).migrateTo("002_stage10a_domain_schema");
+    expect(result.error).toBeUndefined();
     const tables = await sql<{ table_name: string }>`select table_name
       from information_schema.tables where table_schema = 'memoid' order by table_name`.execute(
       isolated.db,
@@ -52,8 +53,9 @@ suite("Stage 10A migrations", () => {
     expect(generated.rows[0]?.version).toBe(7);
   });
 
-  it("is a no-op when migrate-to-latest is repeated", async () => {
-    await expect(migrateToLatest(isolated.db)).resolves.toBeUndefined();
+  it("is a no-op when migrate-to-10A is repeated", async () => {
+    const result = await createMigrator(isolated.db).migrateTo("002_stage10a_domain_schema");
+    expect(result.error).toBeUndefined();
     const applied = await createMigrator(isolated.db).getMigrations();
     expect(applied.filter((migration) => migration.executedAt !== undefined)).toHaveLength(2);
   });
@@ -165,7 +167,8 @@ suite("Stage 10A migrations", () => {
     ) as exists`.execute(isolated.db);
     expect(foundationSchema.rows[0]?.exists).toBe(false);
 
-    await migrateToLatest(isolated.db);
+    const restored = await createMigrator(isolated.db).migrateTo("002_stage10a_domain_schema");
+    expect(restored.error).toBeUndefined();
     const constraints = await sql<{ count: string }>`select count(*)::text as count
       from pg_constraint c join pg_namespace n on n.oid = c.connamespace
       where n.nspname = 'memoid'`.execute(isolated.db);

@@ -1,6 +1,6 @@
 # ADR 0008: PostgreSQL and pg-boss asynchronous operations
 
-Status: Accepted by Stage 8; synthetic foundation executed in Stage 8B; synchronized with the Stage 9C contract in Stage 9D.
+Status: Accepted by Stage 8; synthetic foundation executed in Stage 8B; synchronized with the Stage 9C contract in Stage 9D; provider-neutral Operation/idempotency/receipt/lease foundation executed in Stage 10B.
 
 ## Decision status
 
@@ -13,8 +13,9 @@ Status: Accepted by Stage 8; synthetic foundation executed in Stage 8B; synchron
 - **LOCKED:** Candidate Intake Frontier may be the highest durably accepted sequence. Candidate Reconciled Frontier is the highest contiguous accepted sequence with stable dispositions, or an explicit gap-preserving equivalent; it is never `max(sequence processed)` when gaps exist.
 - **LOCKED:** reconciliation may snapshot a Project review-policy version, but automatic durable mutation re-reads current policy and relevant Source/Candidate/Context frontiers and aborts/re-evaluates if any basis changed.
 - **PROVISIONAL:** queue names, retry/backoff, retention, concurrency, cancellation, and operational thresholds.
-- **Proof-gated:** crash/retry/replay, stale-base, cancellation, authorization revocation, and external-side-effect idempotency require real PostgreSQL tests.
-- **Implementation deferred:** product jobs and Operation persistence are not implemented; Stage 8B contains one synthetic pg-boss proof only.
+- **PROVED IN 10B:** real PostgreSQL tests cover crash/retry/replay, idempotency claim and transactional effects, Operation cancellation/lease races, provider receipt deduplication, and 105→106 lost-wakeup protection.
+- **Proof-gated downstream:** stale domain bases, current authorization/grant/deletion rechecks, external-provider side-effect idempotency, and provider-specific processing remain owned by the vertical that exposes each path.
+- **Implementation boundary:** Stage 10B persists provider-neutral primitives only. Product jobs, provider adapters, protected handlers, and runtime grants remain deferred to their named later verticals.
 
 ## Decision
 

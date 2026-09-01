@@ -185,6 +185,157 @@ export interface ContextRecordSourceCoverageTable extends ScopedRow {
   recorded_at: Timestamp;
 }
 
+export interface ActorsTable {
+  id: Generated<string>;
+  workspace_id: string;
+  actor_kind:
+    | "HUMAN"
+    | "MEMOID_SYSTEM"
+    | "MEMOID_WORKER"
+    | "INTEGRATION"
+    | "DEVELOPER_CLIENT"
+    | "SOURCE_SYSTEM";
+  actor_reference: string;
+  display_label: string;
+  created_at: Timestamp;
+}
+
+export interface OperationsTable extends ScopedRow {
+  id: Generated<string>;
+  initiating_actor_id: string;
+  operation_kind: string;
+  state:
+    | "PENDING"
+    | "RUNNING"
+    | "RETRY_WAIT"
+    | "CANCELLATION_REQUESTED"
+    | "SUCCEEDED"
+    | "FAILED"
+    | "CANCELLED";
+  correlation_id: Generated<string>;
+  causation_id: string | null;
+  attempt_count: number;
+  max_attempts: number;
+  next_attempt_at: NullableTimestamp;
+  lease_token: string | null;
+  lease_owner_actor_id: string | null;
+  lease_expires_at: NullableTimestamp;
+  progress_stage: string | null;
+  authorization_basis_hash: NullableHash;
+  authorization_checked_at: NullableTimestamp;
+  failure_code: string | null;
+  failure_metadata: Json;
+  created_at: Timestamp;
+  started_at: NullableTimestamp;
+  state_changed_at: Timestamp;
+  terminal_at: NullableTimestamp;
+}
+
+export interface OperationAttemptsTable extends ScopedRow {
+  id: Generated<string>;
+  operation_id: string;
+  attempt_number: number;
+  worker_actor_id: string;
+  lease_token: string;
+  acquired_at: Timestamp;
+  lease_expires_at: RequiredTimestamp;
+  finished_at: NullableTimestamp;
+  outcome: "SUCCEEDED" | "RETRY_SCHEDULED" | "FAILED" | "CANCELLED" | "LEASE_EXPIRED" | null;
+  failure_code: string | null;
+  failure_metadata: Json;
+}
+
+export interface IdempotencyRecordsTable extends ScopedRow {
+  id: Generated<string>;
+  actor_id: string;
+  action_key: string;
+  idempotency_key_hash: Hash;
+  request_fingerprint: Hash;
+  correlation_id: Generated<string>;
+  causation_id: string | null;
+  state: "IN_PROGRESS" | "COMPLETED" | "FAILED_RETRYABLE" | "FAILED_TERMINAL";
+  claim_token: string | null;
+  claim_expires_at: NullableTimestamp;
+  attempt_count: number;
+  next_retry_at: NullableTimestamp;
+  result_kind: string | null;
+  result_reference: string | null;
+  result_operation_id: string | null;
+  response_fingerprint: NullableHash;
+  result_status_code: number | null;
+  result_metadata: Json;
+  failure_code: string | null;
+  created_at: Timestamp;
+  state_changed_at: Timestamp;
+  expires_at: RequiredTimestamp;
+}
+
+export interface ProviderEventReceiptsTable extends ScopedRow {
+  id: Generated<string>;
+  received_by_actor_id: string;
+  provider_key: string;
+  receipt_scope_key: string;
+  external_delivery_id: string;
+  payload_hash: Hash;
+  validation_state: "UNVALIDATED" | "AUTHENTICATED" | "REJECTED";
+  disposition:
+    "PENDING" | "PROCESSING" | "PROCESSED" | "IGNORED" | "FAILED_RETRYABLE" | "FAILED_TERMINAL";
+  provider_occurred_at: NullableTimestamp;
+  received_at: RequiredTimestamp;
+  first_seen_at: Timestamp;
+  correlation_id: Generated<string>;
+  causation_id: string | null;
+  operation_id: string | null;
+  attempt_count: number;
+  next_attempt_at: NullableTimestamp;
+  metadata: Json;
+  failure_code: string | null;
+  state_changed_at: Timestamp;
+}
+
+export interface ProcessingUnitsTable extends ScopedRow {
+  id: Generated<string>;
+  unit_kind: string;
+  unit_key: string;
+  desired_sequence: GeneratedInt8;
+  processed_sequence: GeneratedInt8;
+  follow_up_required: boolean;
+  lease_token: string | null;
+  lease_owner_actor_id: string | null;
+  lease_target_sequence: Int8 | null;
+  lease_expires_at: NullableTimestamp;
+  attempt_count: number;
+  next_attempt_at: NullableTimestamp;
+  correlation_id: Generated<string>;
+  causation_id: string | null;
+  failure_code: string | null;
+  failure_metadata: Json;
+  created_at: Timestamp;
+  state_changed_at: Timestamp;
+}
+
+export interface AuditEventsTable extends ScopedRow {
+  id: Generated<string>;
+  actor_id: string;
+  actor_kind_snapshot: string;
+  actor_reference_snapshot: string;
+  actor_label_snapshot: string;
+  category: "SECURITY" | "DATA_INTEGRITY" | "OPERATION" | "INTEGRATION" | "SYSTEM" | "PRODUCT";
+  event_type: string;
+  occurred_at: RequiredTimestamp;
+  recorded_at: Timestamp;
+  target_type: string;
+  target_key: string;
+  correlation_id: string;
+  causation_id: string | null;
+  operation_id: string | null;
+  provider_event_receipt_id: string | null;
+  idempotency_record_id: string | null;
+  outcome: "SUCCESS" | "FAILURE" | "DENIED" | "CANCELLED" | "PARTIAL";
+  failure_code: string | null;
+  metadata: Json;
+}
+
 export interface MemoidDatabase {
   "foundation.tenant_probe": TenantProbeTable;
   "memoid.accounts": AccountsTable;
@@ -207,6 +358,13 @@ export interface MemoidDatabase {
   "memoid.context_record_candidate_provenance": ContextRecordCandidateProvenanceTable;
   "memoid.context_record_source_provenance": ContextRecordSourceProvenanceTable;
   "memoid.context_record_source_coverage": ContextRecordSourceCoverageTable;
+  "memoid.actors": ActorsTable;
+  "memoid.operations": OperationsTable;
+  "memoid.operation_attempts": OperationAttemptsTable;
+  "memoid.idempotency_records": IdempotencyRecordsTable;
+  "memoid.provider_event_receipts": ProviderEventReceiptsTable;
+  "memoid.processing_units": ProcessingUnitsTable;
+  "memoid.audit_events": AuditEventsTable;
 }
 
 /** Compatibility alias retained for the pre-product foundation integration tests. */

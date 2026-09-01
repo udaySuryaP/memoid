@@ -63,6 +63,6 @@ All Project-owned rows repeat non-null Workspace and Project scope. Composite fo
 - Semantic JSON payloads and frontier-basis metadata are bounded; hashes are exactly 32 bytes.
 - The `memoid` schema grants no access to `memoid_app` in 10A. 10C must add authorization, transaction-scoped RLS, policies, and least-privilege grants before any product runtime path can use the tables.
 
-## Deferred attachments
+## Downstream attachments
 
-Actor/Audit/Operation identifiers and detailed model-call provenance attach later through stable Project-scoped identities. Evidence Reference identity attaches in 10F. Full Working/Reviewed lifecycle, Conflict/Uncertainty, Proposal/review, and revision-application semantics remain with 10H-10M. This avoids freezing later Class B vocabularies while preserving the relationships they require.
+Stage 10B attaches the provider-neutral Actor, Audit Event, idempotency, Operation, provider-receipt, and lost-wakeup foundations through the stable Workspace/Project identities described in [the Stage 10B architecture inventory](./actor-audit-operation.md). Detailed model-call provenance remains with the engine/review verticals. Evidence Reference identity attaches in 10F. Full Working/Reviewed lifecycle, Conflict/Uncertainty, Proposal/review, and revision-application semantics remain with 10H-10M.
