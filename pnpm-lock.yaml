@@ -104,9 +104,18 @@ importers:
 
   apps/web:
     dependencies:
+      "@memoid/auth":
+        specifier: workspace:*
+        version: link:../../packages/auth
+      "@memoid/security":
+        specifier: workspace:*
+        version: link:../../packages/security
       "@memoid/ui":
         specifier: workspace:*
         version: link:../../packages/ui
+      "@workos-inc/node":
+        specifier: 10.13.0
+        version: 10.13.0
       geist:
         specifier: 1.7.2
         version: 1.7.2(next@16.3.3(@opentelemetry/api@1.9.1)(@playwright/test@1.62.1)(@types/node@24.13.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
@@ -178,9 +187,12 @@ importers:
       "@memoid/application":
         specifier: workspace:*
         version: link:../application
+      "@memoid/db":
+        specifier: workspace:*
+        version: link:../db
       "@workos-inc/node":
-        specifier: 10.11.0
-        version: 10.11.0
+        specifier: 10.13.0
+        version: 10.13.0
 
   packages/config:
     dependencies:
@@ -2584,10 +2596,10 @@ packages:
         integrity: sha512-zTCVGpyFsGWBhllOyKlTw/vnr6D9qxsfSDyfbyZmTyjHw5N/VuvzHpHoQjm2ZJzn4RJgx5w4r7V0er69CmLgPQ==,
       }
 
-  "@workos-inc/node@10.11.0":
+  "@workos-inc/node@10.13.0":
     resolution:
       {
-        integrity: sha512-5AKE6QDFlp2y04Is1BQRncV2dmTcrhdqVpPrTDYwV5Bpzogfs7ieye6fOJ4DvgQgv/9+G0tXzCAPSXu2ackf6g==,
+        integrity: sha512-xPtcziTjN1irPiZ4niTaulYvRMs6D+Fz5E54GGHVOxNi0PV2/Ws1g/cx3q9oMvMhnINkva5iZ2T5aS6yLzdCWA==,
       }
     engines: { node: ">=22.11.0" }
 
@@ -6323,7 +6335,7 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
 
-  "@workos-inc/node@10.11.0": {}
+  "@workos-inc/node@10.13.0": {}
 
   abstract-logging@2.0.1: {}
 

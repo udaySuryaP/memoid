@@ -26,6 +26,74 @@ export interface AccountsTable {
   created_at: Timestamp;
 }
 
+export interface AccountIdentityBindingsTable {
+  id: Generated<string>;
+  account_id: string;
+  provider_key: string;
+  provider_subject: string;
+  normalized_email: string;
+  email_verified: boolean;
+  state: "ACTIVE" | "DISABLED" | "DELETED";
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  disabled_at: NullableTimestamp;
+}
+
+export interface AccountSecurityStatesTable {
+  account_id: string;
+  security_epoch: Int8;
+  disabled_at: NullableTimestamp;
+  updated_at: Timestamp;
+}
+
+export interface AuthSessionsTable {
+  id: Generated<string>;
+  account_id: string;
+  identity_binding_id: string;
+  token_hash: Hash;
+  provider_session_id: string;
+  security_epoch: Int8;
+  created_at: RequiredTimestamp;
+  last_activity_at: RequiredTimestamp;
+  absolute_expires_at: RequiredTimestamp;
+  idle_expires_at: RequiredTimestamp;
+  provider_verified_until: RequiredTimestamp;
+  provider_expires_at: RequiredTimestamp;
+  fresh_authenticated_at: RequiredTimestamp;
+  rotated_from_session_id: string | null;
+  revoked_at: NullableTimestamp;
+  revocation_reason: string | null;
+}
+
+export interface AuthStepUpIntentsTable {
+  id: Generated<string>;
+  account_id: string;
+  auth_session_id: string;
+  nonce_hash: Hash;
+  action_key: string;
+  workspace_id: string | null;
+  project_id: string | null;
+  return_path: string;
+  correlation_id: string;
+  created_at: Timestamp;
+  expires_at: RequiredTimestamp;
+  consumed_at: NullableTimestamp;
+}
+
+export interface AccountSecurityEventsTable {
+  id: Generated<string>;
+  account_id: string;
+  event_type: string;
+  outcome: "SUCCESS" | "FAILURE" | "DENIED";
+  target_type: string;
+  target_key: string;
+  correlation_id: string;
+  failure_code: string | null;
+  metadata: Json;
+  occurred_at: RequiredTimestamp;
+  recorded_at: Timestamp;
+}
+
 export interface WorkspacesTable {
   id: Generated<string>;
   account_id: string;
@@ -339,6 +407,11 @@ export interface AuditEventsTable extends ScopedRow {
 export interface MemoidDatabase {
   "foundation.tenant_probe": TenantProbeTable;
   "memoid.accounts": AccountsTable;
+  "memoid.account_identity_bindings": AccountIdentityBindingsTable;
+  "memoid.account_security_states": AccountSecurityStatesTable;
+  "memoid.auth_sessions": AuthSessionsTable;
+  "memoid.auth_step_up_intents": AuthStepUpIntentsTable;
+  "memoid.account_security_events": AccountSecurityEventsTable;
   "memoid.workspaces": WorkspacesTable;
   "memoid.projects": ProjectsTable;
   "memoid.project_review_policy_versions": ProjectReviewPolicyVersionsTable;

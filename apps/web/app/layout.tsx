@@ -4,8 +4,8 @@ import "@memoid/ui/tokens.css";
 import "./styles.css";
 
 export const metadata: Metadata = {
-  title: "Memoid foundation",
-  description: "Stage 8B non-product foundation specimens",
+  title: "Memoid",
+  description: "Source-aware context control with secure account access",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

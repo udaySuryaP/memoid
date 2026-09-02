@@ -2,9 +2,9 @@ import Link from "next/link";
 export default function Home() {
   return (
     <main>
-      <h1>Memoid foundation</h1>
-      <p>No product behavior is implemented. This runtime proves the Stage 8B web boundary.</p>
-      <Link href="/foundation">Open component specimens</Link>
+      <h1>Memoid</h1>
+      <p>Source-aware context control, with human decisions kept visible.</p>
+      <Link href="/auth/access">Access your account</Link>
     </main>
   );
 }

@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@memoid/application": "workspace:*",
-    "@workos-inc/node": "10.11.0"
+    "@memoid/db": "workspace:*",
+    "@workos-inc/node": "10.13.0"
   }
 }

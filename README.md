@@ -10,7 +10,7 @@ This repository's implementation contract is synchronized through the **HQ-recon
 
 Before implementing any product vertical, verify explicit authorization against the current canonical `00 - MEMOID HQ` / project state. A later HQ authorization of 10A, 10B, or another vertical does not require a repository status-only patch: execution authorization is owned by HQ, while this repository owns the durable implementation contract.
 
-This repository contains the production-oriented foundation, repository-native implementation contract, the Stage 10A domain/schema implementation, and the Stage 10B Actor/Audit/idempotency/Operation foundations. The repository does not independently authorize any current or later product vertical.
+This repository contains the production-oriented foundation, repository-native implementation contract, the Stage 10A domain/schema implementation, the Stage 10B Actor/Audit/idempotency/Operation foundations, and the bounded Stage 10C identity/session/authorization/RLS implementation. The repository does not independently authorize any current or later product vertical.
 
 ## Architecture foundation
 
@@ -19,7 +19,7 @@ This repository contains the production-oriented foundation, repository-native i
 - PostgreSQL 18 with Kysely/`pg`; application authorization is primary and transaction-scoped RLS is defense-in-depth.
 - Stage 10A adds the provider-free domain kernel and deny-by-default `memoid` schema for the four integrity planes, versioned Project review policy, gap-safe Candidate frontier, per-Source/ref frontiers, Context Identity/currentness, and provenance/coverage foundations.
 - Stage 10B adds provider-neutral Actor attribution, append-only sanitized Audit Events, transactionally scoped idempotency, durable Operation/attempt leases, provider-event receipts, opaque correlation/causation, and desired/processed lost-wakeup protection. It grants no product runtime access and implements no later vertical.
-- WorkOS AuthKit direction with Memoid-owned stable identity, session, authorization, and security state.
+- Stage 10C adds hosted WorkOS AuthKit/PKCE authentication, verified subject-to-Account binding, Memoid-owned opaque revocable sessions, one-time fresh-auth step-up, Account-bound human Actors, a closed capability evaluator, least-privilege `memoid_app` grants, and forced transaction-scoped RLS across every product table. It does not implement 10D or later product behavior.
 - MCP v2 split SDK packages with remote Streamable HTTP as the hosted adapter direction.
 - Read-only GitHub App using selective Source ingestion; no durable repository mirror.
 - Ordinary external MCP/API machine clients cannot trigger Source refresh or synchronization in V1. Source synchronization is Memoid/server-controlled.
@@ -33,7 +33,7 @@ This repository contains the production-oriented foundation, repository-native i
 - PostgreSQL full-text retrieval and pg-boss; no Redis, vector database, or embeddings in initial V1.
 - Render, S3/KMS, OpenTelemetry, and Grafana directions, with proof-gated details recorded in the ADRs.
 
-See [the ADR index](./docs/decisions/README.md), [the architecture guide](./docs/architecture/foundation.md), [the Stage 10A domain/schema inventory](./docs/architecture/domain-kernel-schema.md), [the Stage 10B actor/audit/operation inventory](./docs/architecture/actor-audit-operation.md), [the Stage 10 entry map](./docs/implementation/stage10-entry-map.md), and the complete [Stage 9C failure/race contract](./docs/implementation/stage9c-failure-race-contract.json).
+See [the ADR index](./docs/decisions/README.md), [the architecture guide](./docs/architecture/foundation.md), [the Stage 10A domain/schema inventory](./docs/architecture/domain-kernel-schema.md), [the Stage 10B actor/audit/operation inventory](./docs/architecture/actor-audit-operation.md), [the Stage 10C security inventory](./docs/architecture/identity-sessions-authorization-rls.md), [the Stage 10 entry map](./docs/implementation/stage10-entry-map.md), and the complete [Stage 9C failure/race contract](./docs/implementation/stage9c-failure-race-contract.json).
 
 ## Prerequisites
 
@@ -59,7 +59,7 @@ Web: `http://localhost:3000` · API liveness: `http://localhost:3001/health` · 
 
 Copy `.env.example` to `.env` for local development. The example contains synthetic local-only values. Development, test, staging, and production must use separate credentials, databases, OAuth/GitHub registrations, storage, encryption keys, and telemetry boundaries. Production data must not flow into lower environments by default. Never commit `.env` files or reusable credentials.
 
-Application runtimes must not use database owner/admin credentials. Database tests use only the synthetic `foundation.tenant_probe` table. `pg-boss` is infrastructure and never replaces application idempotency or domain concurrency rules.
+Application runtimes must not use database owner/admin credentials. Authenticated product work must use `memoid_app` and the transaction-scoped security wrapper. Database tests use synthetic isolated databases and the non-owner role. `pg-boss` is infrastructure and never replaces application idempotency or domain concurrency rules.
 
 `/health` is process liveness only and does not contact PostgreSQL. `/ready` performs a bounded, read-only PostgreSQL probe using application credentials; it returns HTTP 503 with a sanitized body when PostgreSQL is unavailable. Configure the bound with `DATABASE_READINESS_TIMEOUT_MS` (default 2000 ms, allowed range 100–10000 ms).
 
