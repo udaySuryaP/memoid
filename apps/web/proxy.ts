@@ -39,4 +39,4 @@ function accessRedirect(request: NextRequest, clear: boolean) {
   return response;
 }
 
-export const config = { matcher: ["/account/:path*", "/step-up"] };
+export const config = { matcher: ["/account/:path*", "/projects/:path*", "/step-up"] };

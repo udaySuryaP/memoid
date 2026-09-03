@@ -4,12 +4,16 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./workspace-project": "./src/workspace-project.ts"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "3.1119.0",
     "@aws-sdk/client-s3": "3.1119.0",
     "@memoid/application": "workspace:*",
+    "@memoid/db": "workspace:*",
+    "@memoid/domain": "workspace:*",
+    "kysely": "0.29.5",
     "@octokit/app": "16.1.4",
     "@octokit/rest": "22.0.1"
   }

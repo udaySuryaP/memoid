@@ -124,6 +124,16 @@ export function hashSessionCredential(token: string): Buffer {
   return createHash("sha256").update(token, "utf8").digest();
 }
 
+export function hashIdempotencyKey(value: string): Buffer {
+  if (value.length < 32 || value.length > 256)
+    throw new Error("Idempotency key must contain 32 to 256 characters");
+  return createHash("sha256").update(value, "utf8").digest();
+}
+
+export function fingerprintLifecycleRequest(value: Readonly<Record<string, unknown>>): Buffer {
+  return createHash("sha256").update(JSON.stringify(value), "utf8").digest();
+}
+
 export function serializeSessionCookie(token: string, maxAgeSeconds: number): string {
   if (!Number.isInteger(maxAgeSeconds) || maxAgeSeconds < 1)
     throw new Error("Session cookie max age is invalid");

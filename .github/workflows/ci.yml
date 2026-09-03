@@ -57,6 +57,17 @@ jobs:
           INTEGRATION_DATABASE_URL: postgresql://memoid_app:synthetic-app-password@localhost:55433/memoid_test
   browser:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-bookworm
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: memoid_test
+        ports: ["55433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d memoid_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -70,7 +81,20 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      - name: Initialize synthetic database roles
+        run: docker exec -i ${{ job.services.postgres.id }} psql -U postgres -d memoid_test < infra/postgres/init/001_roles.sql
+      - name: Create synthetic browser-only auth-flow secret
+        run: echo "MEMOID_AUTH_FLOW_SECRET=$(printf '0%.0s' {1..32} | base64 -w0)" >> "$GITHUB_ENV"
       - run: pnpm test:e2e
+        env:
+          STAGE10D_E2E: "1"
+          INTEGRATION_DATABASE_ADMIN_URL: postgresql://postgres:postgres@localhost:55433/memoid_test
+          DATABASE_URL: postgresql://memoid_app:synthetic-app-password@localhost:55433/memoid_test
+          AUTH_DATABASE_URL: postgresql://memoid_auth:synthetic-auth-password@localhost:55433/memoid_test
+          MEMOID_APP_ORIGIN: http://127.0.0.1:3000
+          WORKOS_API_KEY: placeholder
+          WORKOS_CLIENT_ID: e2e-client-placeholder
+          WORKOS_WEBHOOK_SECRET: e2e-webhook-placeholder
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !cancelled() }}
         with:

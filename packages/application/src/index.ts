@@ -1,5 +1,7 @@
 import type { AccountId, ProjectId } from "@memoid/domain";
 
+export * from "./workspace-project.js";
+
 export interface AuthenticatedIdentity {
   readonly providerKey: string;
   readonly providerSubject: string;

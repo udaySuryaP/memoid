@@ -10,6 +10,8 @@ import type { S3Client } from "@aws-sdk/client-s3";
 import type { App } from "@octokit/app";
 import type { Octokit } from "@octokit/rest";
 
+export * from "./workspace-project.js";
+
 export interface GitHubAdapterDependencies {
   readonly app: App;
   readonly rest: Octokit;

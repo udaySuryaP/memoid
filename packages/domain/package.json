@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./actor": "./src/actor.ts",
+    "./authorization": "./src/authorization.ts",
+    "./identifiers": "./src/identifiers.ts",
+    "./values": "./src/values.ts",
+    "./workspace-project": "./src/workspace-project.ts"
   }
 }

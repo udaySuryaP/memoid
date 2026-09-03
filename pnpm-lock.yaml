@@ -104,9 +104,18 @@ importers:
 
   apps/web:
     dependencies:
+      "@memoid/adapters":
+        specifier: workspace:*
+        version: link:../../packages/adapters
+      "@memoid/application":
+        specifier: workspace:*
+        version: link:../../packages/application
       "@memoid/auth":
         specifier: workspace:*
         version: link:../../packages/auth
+      "@memoid/domain":
+        specifier: workspace:*
+        version: link:../../packages/domain
       "@memoid/security":
         specifier: workspace:*
         version: link:../../packages/security
@@ -169,12 +178,21 @@ importers:
       "@memoid/application":
         specifier: workspace:*
         version: link:../application
+      "@memoid/db":
+        specifier: workspace:*
+        version: link:../db
+      "@memoid/domain":
+        specifier: workspace:*
+        version: link:../domain
       "@octokit/app":
         specifier: 16.1.4
         version: 16.1.4
       "@octokit/rest":
         specifier: 22.0.1
         version: 22.0.1
+      kysely:
+        specifier: 0.29.5
+        version: 0.29.5
 
   packages/application:
     dependencies:
