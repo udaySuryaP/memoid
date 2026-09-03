@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
-  transpilePackages: ["@memoid/ui"],
+  transpilePackages: ["@memoid/auth", "@memoid/db", "@memoid/ui"],
   output: "standalone",
   poweredByHeader: false,
   agentRules: false,

@@ -1,6 +1,6 @@
 # ADR 0005: WorkOS AuthKit and Memoid-owned security state
 
-Status: Accepted by Stage 8; repository record added in Stage 8C.
+Status: Accepted by Stage 8; bounded implementation completed in Stage 10C.
 
 ## Decision status
 
@@ -8,9 +8,9 @@ Status: Accepted by Stage 8; repository record added in Stage 8C.
 - **LOCKED:** Memoid owns stable Account identity, opaque revocable browser sessions, current authorization/grant state, and high-risk-operation policy.
 - **LOCKED:** local sessions cannot outlive relevant WorkOS revocation, recovery, reset, or equivalent high-risk security state.
 - **LOCKED:** strong authentication is Memoid policy evaluated from provider assurance; hosted provider UX is not reimplemented as custom passkey management.
-- **PROVISIONAL:** exact session/token lifetimes, assurance mapping, event matrix, and provider plan details.
-- **Proof-gated:** session invalidation, recovery, step-up return intent, CSRF, issuer/audience/PKCE, and current-grant checks must pass integration/security tests.
-- **Implementation deferred:** product authentication, session persistence, OAuth consent, and security screens are not implemented in the foundation.
+- **RESOLVED FOR 10C:** the bounded defaults are 24-hour absolute, 1-hour idle, 15-minute fresh-auth, and 5-minute provider revalidation; provider expiry may shorten every window.
+- **PROOF-GATED AND IMPLEMENTED:** verified subject binding, provider-event invalidation, one-time step-up rotation, PKCE/state, mutation-origin enforcement, current authorization, and forced-RLS isolation have local security/integration tests.
+- **IMPLEMENTED IN 10C:** hosted authentication transitions, local session persistence, security screens, and provider-neutral authorization foundations. OAuth client consent and later product capabilities remain with their owning verticals.
 
 ## Decision
 

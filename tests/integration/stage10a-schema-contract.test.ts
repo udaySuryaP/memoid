@@ -658,13 +658,16 @@ suite("Stage 10A PostgreSQL contract", () => {
     expect(proof.rows[0]).toEqual({ candidate: "1", source: "1", coverage: "1" });
   });
 
-  it("keeps the product schema inaccessible to the application role until 10C", async () => {
+  it("keeps Stage 10A data fail-closed for the application role without a 10C context", async () => {
     const appUrl = new URL(isolated.connectionString);
     appUrl.username = "memoid_app";
     appUrl.password = "synthetic-app-password";
     const app = createDatabase(appUrl.toString(), 1);
     try {
-      await expect(sql`select id from memoid.accounts`.execute(app)).rejects.toThrow();
+      await expect(sql`select id from memoid.accounts`.execute(app)).resolves.toMatchObject({
+        rows: [],
+      });
+      await expect(sql`insert into memoid.accounts default values`.execute(app)).rejects.toThrow();
     } finally {
       await app.destroy();
     }

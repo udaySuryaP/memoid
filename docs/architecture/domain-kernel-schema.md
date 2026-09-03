@@ -19,6 +19,8 @@ The pre-migration challenge and every Class A resolution are recorded in `docs/i
 
 1. `001_foundation_rls` retains the accepted Stage 8B synthetic RLS probe unchanged.
 2. `002_stage10a_domain_schema` creates the `memoid` product schema, constraints, functions, triggers, indexes, comments, and deny-by-default runtime permissions.
+3. `003_stage10b_actor_audit_operation` attaches Actor, Audit, idempotency, Operation, provider-receipt, and lost-wakeup foundations.
+4. `004_stage10c_identity_authz_rls` attaches identity/session security state, least-privilege runtime functions, and forced scope-specific RLS.
 
 Both migrations have down paths. Product schema rollback drops only `memoid`; the earlier foundation remains until its own down migration executes.
 
@@ -61,7 +63,7 @@ All Project-owned rows repeat non-null Workspace and Project scope. Composite fo
 - A reviewed Context Record must commit with at least one same-Project Candidate-assertion or Source-observation provenance edge; one revision cannot contain two records for the same Context Identity.
 - Durable evidence/history payload rows reject in-place updates. Delete semantics remain deferred to 10S rather than being frozen by 10A.
 - Semantic JSON payloads and frontier-basis metadata are bounded; hashes are exactly 32 bytes.
-- The `memoid` schema grants no access to `memoid_app` in 10A. 10C must add authorization, transaction-scoped RLS, policies, and least-privilege grants before any product runtime path can use the tables.
+- The `memoid` schema grants no access to `memoid_app` at the 10A/10B boundary. Stage 10C adds forced transaction-scoped RLS and narrowly grants read access plus human-Actor/Audit inserts; later lifecycle writes remain unavailable until their owning verticals.
 
 ## Downstream attachments
 

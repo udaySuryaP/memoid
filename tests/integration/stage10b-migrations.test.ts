@@ -1,4 +1,4 @@
-import { createDatabase, createMigrator, migrateToLatest } from "@memoid/db";
+import { createDatabase, createMigrator } from "@memoid/db";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createIsolatedTestDatabase, type IsolatedTestDatabase } from "./stage10a-test-database.js";
@@ -40,7 +40,10 @@ suite("Stage 10B migrations", () => {
   afterAll(async () => isolated.destroy());
 
   it("applies blank to latest with the actual deterministic migration provider", async () => {
-    await migrateToLatest(isolated.db);
+    const through10b = await createMigrator(isolated.db).migrateTo(
+      "003_stage10b_actor_audit_operation",
+    );
+    expect(through10b.error).toBeUndefined();
     const tables = await sql<{
       table_name: string;
     }>`select table_name from information_schema.tables

@@ -23,6 +23,9 @@ export type ProcessingUnitId = OpaqueId<"ProcessingUnitId">;
 export type CorrelationId = OpaqueId<"CorrelationId">;
 export type CausationId = OpaqueId<"CausationId">;
 export type LeaseToken = OpaqueId<"LeaseToken">;
+export type IdentityBindingId = OpaqueId<"IdentityBindingId">;
+export type AuthSessionId = OpaqueId<"AuthSessionId">;
+export type StepUpIntentId = OpaqueId<"StepUpIntentId">;
 
 export function parseUuidV7<Kind extends string>(value: string, kind: Kind): OpaqueId<Kind> {
   const normalized = value.toLowerCase();

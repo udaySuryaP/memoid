@@ -89,10 +89,10 @@ Gate classes: **A** foundational/entry gate resolved before the first irreversib
 | Operation states, cancellation, retry, and terminal semantics | PROOF-GATED / B      | 10B         | worker crash/retry state-machine tests                     | before 10B                             |
 | Desired/processed frontier lease and lost-wakeup behavior     | PROOF-GATED / B      | 10B + 10F   | 105→106 race, crash/retry, duplicate-job integration tests | before 10F processing                  |
 | Candidate contiguous/gap-preserving reconciliation watermark  | PROOF-GATED / B      | 10B         | 47/48/50 complete with 49 pending concurrency tests        | before 10B frontier code               |
-| WorkOS subject mapping and verified-email policy              | PROOF-GATED / B      | 10C         | hosted-flow integration and account-link threat tests      | before 10C                             |
-| Session lifetime, revocation, and step-up freshness           | PROVISIONAL / B      | 10C         | AuthKit capability proof and security test matrix          | before 10C                             |
-| Capability names, role bundles, and grant precedence          | PROOF-GATED / B      | 10C         | deny-by-default authorization matrix                       | before 10C                             |
-| RLS variables, transaction scope, pool reset, non-owner role  | LOCKED direction / B | 10C         | cross-tenant and pooled-connection integration tests       | before 10C data paths                  |
+| WorkOS subject mapping and verified-email policy              | RESOLVED / 10C       | 10C         | hosted-flow adapter and account-link threat tests          | implemented and proof-gated            |
+| Session lifetime, revocation, and step-up freshness           | RESOLVED / 10C       | 10C         | AuthKit evidence, webhook, rotation, replay security tests | implemented and proof-gated            |
+| Capability names, role bundles, and grant precedence          | RESOLVED / 10C       | 10C         | deny-by-default authorization matrix                       | implemented and proof-gated            |
+| RLS variables, transaction scope, pool reset, non-owner role  | RESOLVED / 10C       | 10C         | cross-Account and pooled-connection integration tests      | implemented and proof-gated            |
 | Workspace/Project membership lifecycle                        | PROOF-GATED / B      | 10D         | ownership, last-admin, archive, and invite cases           | before 10D                             |
 | GitHub installation/repository identity                       | LOCKED direction / B | 10E         | provider ID rename/transfer/remove tests                   | before 10E                             |
 | GitHub permissions and webhook authenticity/deduplication     | LOCKED direction / B | 10E         | least-privilege manifest and replay/out-of-order tests     | before 10E                             |
