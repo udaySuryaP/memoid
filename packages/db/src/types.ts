@@ -103,7 +103,13 @@ export interface WorkspacesTable {
 export interface ProjectsTable {
   id: Generated<string>;
   workspace_id: string;
+  display_name: string;
+  description: string | null;
+  lifecycle_state: "ACTIVE" | "ARCHIVED";
+  version: GeneratedInt8;
   created_at: Timestamp;
+  updated_at: Timestamp;
+  archived_at: NullableTimestamp;
 }
 
 export interface ProjectReviewPolicyVersionsTable extends ScopedRow {
@@ -313,7 +319,9 @@ export interface OperationAttemptsTable extends ScopedRow {
   failure_metadata: Json;
 }
 
-export interface IdempotencyRecordsTable extends ScopedRow {
+export interface IdempotencyRecordsTable {
+  workspace_id: string;
+  project_id: string | null;
   id: Generated<string>;
   actor_id: string;
   action_key: string;

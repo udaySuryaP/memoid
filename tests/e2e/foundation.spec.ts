@@ -42,3 +42,47 @@ test("protected errors do not disclose resource existence", async ({ page }) => 
   ).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
+
+test.describe("Stage 10D Project surfaces", () => {
+  test.skip(process.env.STAGE10D_E2E !== "1", "requires the isolated Stage 10D browser database");
+
+  test.beforeEach(async ({ context }) => {
+    await context.addCookies([
+      {
+        name: "__Host-memoid_session",
+        value: "stage10d-e2e-session-credential-000001",
+        domain: "127.0.0.1",
+        path: "/",
+        secure: true,
+        httpOnly: true,
+        sameSite: "Lax",
+      },
+    ]);
+  });
+
+  test("inventory, create, shell, and settings remain accessible and connected", async ({
+    page,
+  }) => {
+    await page.goto("/projects");
+    await expect(page.getByRole("heading", { name: "Projects", level: 1 })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Browser proof project/ })).toBeVisible();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+    await page.getByRole("link", { name: "New project" }).click();
+    await expect(page.getByRole("heading", { name: "Create a project" })).toBeVisible();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    const uniqueName = `Browser created ${test.info().project.name}`;
+    await page.getByLabel("Project name").fill(uniqueName);
+    await page.getByLabel("Description").fill("Created through the real lifecycle command.");
+    await page.getByRole("button", { name: "Create project" }).click();
+    await expect(page.getByRole("heading", { name: uniqueName })).toBeVisible();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+    await page.getByRole("link", { name: "Project settings" }).click();
+    await expect(page.getByRole("heading", { name: "Project details" })).toBeVisible();
+    await page.getByLabel("Description").fill("Updated through optimistic concurrency.");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByText("Updated through optimistic concurrency.")).toBeVisible();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  });
+});

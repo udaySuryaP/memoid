@@ -1,5 +1,5 @@
-import type { AccountId, ActorId, ProjectId, WorkspaceId } from "./identifiers.js";
-import type { ActorKind } from "./actor.js";
+import type { AccountId, ActorId, ProjectId, WorkspaceId } from "@memoid/domain/identifiers";
+import type { ActorKind } from "@memoid/domain/actor";
 
 export const CAPABILITIES = [
   "WORKSPACE_DISCOVER",
