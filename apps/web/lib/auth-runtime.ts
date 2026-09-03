@@ -13,7 +13,7 @@ export function authRuntime() {
       new WorkOS(requiredEnvironment("WORKOS_API_KEY")),
       requiredEnvironment("WORKOS_CLIENT_ID"),
     ),
-    sessions: new MemoidAuthSessionStore(requiredEnvironment("DATABASE_URL"), 2),
+    sessions: new MemoidAuthSessionStore(requiredEnvironment("AUTH_DATABASE_URL"), 2),
     origin: requiredEnvironment("MEMOID_APP_ORIGIN"),
     flowSecret: Buffer.from(requiredEnvironment("MEMOID_AUTH_FLOW_SECRET"), "base64url"),
     webhookSecret: requiredEnvironment("WORKOS_WEBHOOK_SECRET"),

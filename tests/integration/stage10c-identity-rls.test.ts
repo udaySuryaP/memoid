@@ -29,9 +29,17 @@ function appConnection(connectionString: string, max = 1): Kysely<MemoidDatabase
   return createDatabase(url.toString(), max);
 }
 
+function authConnection(connectionString: string, max = 1): Kysely<MemoidDatabase> {
+  const url = new URL(connectionString);
+  url.username = "memoid_auth";
+  url.password = "synthetic-auth-password";
+  return createDatabase(url.toString(), max);
+}
+
 suite("Stage 10C identity, sessions, and forced RLS", () => {
   let isolated: IsolatedTestDatabase;
   let app: Kysely<MemoidDatabase>;
+  let auth: Kysely<MemoidDatabase>;
   let accountA: string;
   let accountB: string;
   let workspaceA: string;
@@ -45,13 +53,14 @@ suite("Stage 10C identity, sessions, and forced RLS", () => {
     isolated = await createIsolatedTestDatabase(adminUrl!, "10c_security");
     await migrateToLatest(isolated.db);
     app = appConnection(isolated.connectionString);
-    const identityA = await resolveAccountIdentity(app, {
+    auth = authConnection(isolated.connectionString);
+    const identityA = await resolveAccountIdentity(auth, {
       providerKey: "workos",
       providerSubject: "user_account_a",
       email: "owner-a@example.test",
       emailVerified: true,
     });
-    const identityB = await resolveAccountIdentity(app, {
+    const identityB = await resolveAccountIdentity(auth, {
       providerKey: "workos",
       providerSubject: "user_account_b",
       email: "owner-b@example.test",
@@ -86,14 +95,14 @@ suite("Stage 10C identity, sessions, and forced RLS", () => {
         returning id::text`.execute(isolated.db)
     ).rows[0]!.id;
 
-    await createLocalAuthSession(app, {
+    await createLocalAuthSession(auth, {
       accountId: accountA,
       bindingId: identityA.bindingId,
       tokenHash: tokenA,
       providerSessionId: "session_account_a",
       freshAuthenticatedAt: new Date(),
       providerExpiresAt: new Date(Date.now() + 60 * 60 * 1_000),
-      correlationId: await createDatabaseUuidV7(app),
+      correlationId: await createDatabaseUuidV7(auth),
     });
     actorA = await withSecurityTransaction(
       app,
@@ -110,6 +119,7 @@ suite("Stage 10C identity, sessions, and forced RLS", () => {
 
   afterAll(async () => {
     await app.destroy();
+    await auth.destroy();
     await isolated.destroy();
   });
 
@@ -122,9 +132,143 @@ suite("Stage 10C identity, sessions, and forced RLS", () => {
     expect(unprotected.rows).toEqual([]);
   });
 
+  it("separates ordinary product access from the bounded authentication authority", async () => {
+    const roles = await sql<{
+      rolname: string;
+      rolsuper: boolean;
+      rolcreatedb: boolean;
+      rolcreaterole: boolean;
+      rolinherit: boolean;
+      rolbypassrls: boolean;
+    }>`select rolname, rolsuper, rolcreatedb, rolcreaterole, rolinherit, rolbypassrls
+      from pg_roles where rolname in ('memoid_app', 'memoid_auth') order by rolname`.execute(
+      isolated.db,
+    );
+    expect(roles.rows).toEqual([
+      {
+        rolname: "memoid_app",
+        rolsuper: false,
+        rolcreatedb: false,
+        rolcreaterole: false,
+        rolinherit: false,
+        rolbypassrls: false,
+      },
+      {
+        rolname: "memoid_auth",
+        rolsuper: false,
+        rolcreatedb: false,
+        rolcreaterole: false,
+        rolinherit: false,
+        rolbypassrls: false,
+      },
+    ]);
+
+    const elevated = [
+      "authenticate_auth_session",
+      "complete_step_up_intent",
+      "create_auth_session",
+      "create_step_up_intent",
+      "mark_auth_session_provider_state",
+      "resolve_account_identity",
+      "revoke_auth_session",
+      "revoke_provider_auth_session",
+      "revoke_provider_identity_sessions",
+    ];
+    const privileges = await sql<{
+      name: string;
+      app_execute: boolean;
+      auth_execute: boolean;
+    }>`select p.proname as name,
+        has_function_privilege('memoid_app', p.oid, 'EXECUTE') as app_execute,
+        has_function_privilege('memoid_auth', p.oid, 'EXECUTE') as auth_execute
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'memoid' and p.proname = any(${elevated}::text[])
+      order by p.proname`.execute(isolated.db);
+    expect(privileges.rows).toEqual(
+      elevated.map((name) => ({ name, app_execute: false, auth_execute: true })),
+    );
+    const authExecutable = await sql<{ name: string }>`select p.proname as name
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'memoid' and has_function_privilege('memoid_auth', p.oid, 'EXECUTE')
+      order by p.proname`.execute(isolated.db);
+    expect(authExecutable.rows.map(({ name }) => name)).toEqual(elevated);
+
+    const authTableAuthority = await sql<{
+      owned_tables: number;
+      table_privileges: number;
+    }>`select
+      (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'memoid' and c.relkind = 'r'
+          and pg_get_userbyid(c.relowner) = 'memoid_auth') as owned_tables,
+      (select count(*)::int from information_schema.table_privileges
+        where grantee = 'memoid_auth' and table_schema = 'memoid') as table_privileges`.execute(
+      isolated.db,
+    );
+    expect(authTableAuthority.rows[0]).toEqual({ owned_tables: 0, table_privileges: 0 });
+    const authMemberships = await sql`select 1 from pg_auth_members m
+      join pg_roles member on member.oid = m.member
+      where member.rolname = 'memoid_auth'`.execute(isolated.db);
+    expect(authMemberships.rows).toEqual([]);
+    await expect(sql`select id from memoid.projects`.execute(auth)).rejects.toThrow(
+      /permission denied/i,
+    );
+  });
+
+  it("denies direct elevated-auth abuse from memoid_app and exposes no weak step-up primitive", async () => {
+    await expect(
+      sql`select * from memoid.resolve_account_identity(
+        'workos', 'attacker', 'attacker@example.test', true
+      )`.execute(app),
+    ).rejects.toThrow(/permission denied/i);
+    await expect(
+      sql`select memoid.create_auth_session(
+        ${accountB}::uuid, ${accountB}::uuid, ${Buffer.alloc(32, 70)}::bytea,
+        'attacker-session', clock_timestamp(), clock_timestamp() + interval '1 hour', uuidv7()
+      )`.execute(app),
+    ).rejects.toThrow(/permission denied/i);
+    await expect(
+      sql`select memoid.revoke_provider_identity_sessions(
+        'workos', 'user_account_b', 'ATTACK', uuidv7()
+      )`.execute(app),
+    ).rejects.toThrow(/permission denied/i);
+    await expect(
+      sql`select * from memoid.complete_step_up_intent(
+        ${Buffer.alloc(32, 71)}::bytea, ${Buffer.alloc(32, 72)}::bytea, ${accountA}::uuid,
+        ${Buffer.alloc(32, 73)}::bytea, 'user_account_a', 'attacker-session',
+        clock_timestamp(), clock_timestamp() + interval '1 hour'
+      )`.execute(app),
+    ).rejects.toThrow(/permission denied/i);
+    const weakPrimitive = await sql<{ function_name: string | null }>`select
+      to_regprocedure('memoid.consume_step_up_intent(bytea,bytea,uuid)')::text as function_name`.execute(
+      isolated.db,
+    );
+    expect(weakPrimitive.rows[0]?.function_name).toBeNull();
+  });
+
+  it("pins every Stage 10C security-definer function to memoid_owner and a fixed search path", async () => {
+    const functions = await sql<{
+      name: string;
+      owner: string;
+      configuration: string[] | null;
+    }>`select p.proname as name, pg_get_userbyid(p.proowner) as owner, p.proconfig as configuration
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'memoid' and p.prosecdef and p.proname in (
+        'initialize_account_security_state', 'resolve_account_identity', 'create_auth_session',
+        'authenticate_auth_session', 'mark_auth_session_provider_state', 'revoke_auth_session',
+        'revoke_provider_auth_session', 'revoke_provider_identity_sessions',
+        'revoke_all_account_auth_sessions', 'create_step_up_intent', 'complete_step_up_intent',
+        'has_workspace_scope', 'has_project_scope'
+      ) order by p.proname`.execute(isolated.db);
+    expect(functions.rows).toHaveLength(13);
+    for (const fn of functions.rows) {
+      expect(fn.owner).toBe("memoid_owner");
+      expect(fn.configuration).toContain("search_path=pg_catalog, memoid");
+    }
+  });
+
   it("fails closed for unverified or ambiguous identity linking", async () => {
     await expect(
-      resolveAccountIdentity(app, {
+      resolveAccountIdentity(auth, {
         providerKey: "workos",
         providerSubject: "user_unverified",
         email: "unverified@example.test",
@@ -132,7 +276,7 @@ suite("Stage 10C identity, sessions, and forced RLS", () => {
       }),
     ).rejects.toThrow("EMAIL_NOT_VERIFIED");
     await expect(
-      resolveAccountIdentity(app, {
+      resolveAccountIdentity(auth, {
         providerKey: "workos",
         providerSubject: "different_subject_same_email",
         email: "OWNER-A@example.test",
@@ -140,7 +284,7 @@ suite("Stage 10C identity, sessions, and forced RLS", () => {
       }),
     ).rejects.toThrow("IDENTITY_LINK_AMBIGUOUS");
     await expect(
-      resolveAccountIdentity(app, {
+      resolveAccountIdentity(auth, {
         providerKey: "workos",
         providerSubject: "user_account_a",
         email: "owner-a@example.test",
@@ -150,37 +294,24 @@ suite("Stage 10C identity, sessions, and forced RLS", () => {
   });
 
   it("authenticates only hashed, active local sessions and supports one-time scoped step-up", async () => {
-    await expect(authenticateLocalSession(app, tokenA)).resolves.toMatchObject({
+    await expect(authenticateLocalSession(auth, tokenA)).resolves.toMatchObject({
       accountId: accountA,
       providerSessionId: "session_account_a",
       fresh: true,
     });
-    await expect(authenticateLocalSession(app, Buffer.alloc(32, 12))).resolves.toBeNull();
-    const nonce = Buffer.alloc(32, 21);
-    const intent = await sql<{ id: string }>`select memoid.create_step_up_intent(
-      ${tokenA}::bytea, ${nonce}::bytea, 'REVOKE_ALL_SESSIONS', ${workspaceA}::uuid,
-      ${projectA}::uuid, '/account/security', ${await createDatabaseUuidV7(app)}::uuid
-    )::text as id`.execute(app);
-    const consume = () =>
-      sql`select * from memoid.consume_step_up_intent(
-        ${tokenA}::bytea, ${nonce}::bytea, ${intent.rows[0]!.id}::uuid
-      )`.execute(app);
-    await expect(consume()).resolves.toMatchObject({
-      rows: [expect.objectContaining({ action_key: "REVOKE_ALL_SESSIONS" })],
-    });
-    await expect(consume()).resolves.toMatchObject({ rows: [] });
+    await expect(authenticateLocalSession(auth, Buffer.alloc(32, 12))).resolves.toBeNull();
 
     const rotationNonce = Buffer.alloc(32, 22);
-    const rotationIntent = await createStepUpIntent(app, {
+    const rotationIntent = await createStepUpIntent(auth, {
       tokenHash: tokenA,
       nonceHash: rotationNonce,
       actionKey: "MANAGE_ACCOUNT_SECURITY",
       returnPath: "/account/security",
-      correlationId: await createDatabaseUuidV7(app),
+      correlationId: await createDatabaseUuidV7(auth),
     });
     const rotatedToken = Buffer.alloc(32, 23);
     await expect(
-      completeStepUpIntent(app, {
+      completeStepUpIntent(auth, {
         oldTokenHash: tokenA,
         nonceHash: rotationNonce,
         intentId: rotationIntent,
@@ -191,11 +322,11 @@ suite("Stage 10C identity, sessions, and forced RLS", () => {
         providerExpiresAt: new Date(Date.now() + 60 * 60 * 1_000),
       }),
     ).rejects.toThrow("STEP_UP_IDENTITY_MISMATCH");
-    await expect(authenticateLocalSession(app, tokenA)).resolves.toMatchObject({
+    await expect(authenticateLocalSession(auth, tokenA)).resolves.toMatchObject({
       accountId: accountA,
     });
     await expect(
-      completeStepUpIntent(app, {
+      completeStepUpIntent(auth, {
         oldTokenHash: tokenA,
         nonceHash: rotationNonce,
         intentId: rotationIntent,
@@ -206,11 +337,11 @@ suite("Stage 10C identity, sessions, and forced RLS", () => {
         providerExpiresAt: new Date(Date.now() + 60 * 60 * 1_000),
       }),
     ).rejects.toThrow("STEP_UP_INTENT_INVALID");
-    await expect(authenticateLocalSession(app, tokenA)).resolves.toMatchObject({
+    await expect(authenticateLocalSession(auth, tokenA)).resolves.toMatchObject({
       accountId: accountA,
     });
     await expect(
-      completeStepUpIntent(app, {
+      completeStepUpIntent(auth, {
         oldTokenHash: tokenA,
         nonceHash: rotationNonce,
         intentId: rotationIntent,
@@ -221,13 +352,13 @@ suite("Stage 10C identity, sessions, and forced RLS", () => {
         providerExpiresAt: new Date(Date.now() + 60 * 60 * 1_000),
       }),
     ).resolves.toMatchObject({ returnPath: "/account/security" });
-    await expect(authenticateLocalSession(app, tokenA)).resolves.toBeNull();
-    await expect(authenticateLocalSession(app, rotatedToken)).resolves.toMatchObject({
+    await expect(authenticateLocalSession(auth, tokenA)).resolves.toBeNull();
+    await expect(authenticateLocalSession(auth, rotatedToken)).resolves.toMatchObject({
       accountId: accountA,
       fresh: true,
     });
     await expect(
-      completeStepUpIntent(app, {
+      completeStepUpIntent(auth, {
         oldTokenHash: tokenA,
         nonceHash: rotationNonce,
         intentId: rotationIntent,
@@ -358,55 +489,63 @@ suite("Stage 10C identity, sessions, and forced RLS", () => {
   });
 
   it("revokes local sessions from provider session, password-reset, and user-deletion signals", async () => {
-    const identity = await resolveAccountIdentity(app, {
+    const identity = await resolveAccountIdentity(auth, {
       providerKey: "workos",
       providerSubject: "user_provider_events",
       email: "provider-events@example.test",
       emailVerified: true,
     });
     const sessionToken = Buffer.alloc(32, 31);
-    await createLocalAuthSession(app, {
+    await createLocalAuthSession(auth, {
       accountId: identity.accountId,
       bindingId: identity.bindingId,
       tokenHash: sessionToken,
       providerSessionId: "session_provider_event",
       freshAuthenticatedAt: new Date(),
       providerExpiresAt: new Date(Date.now() + 60 * 60 * 1_000),
-      correlationId: await createDatabaseUuidV7(app),
+      correlationId: await createDatabaseUuidV7(auth),
     });
     await expect(
       revokeProviderAuthSession(
-        app,
+        auth,
         "session_provider_event",
         "PROVIDER_SESSION_REVOKED",
-        await createDatabaseUuidV7(app),
+        await createDatabaseUuidV7(auth),
       ),
     ).resolves.toBe(1);
-    await expect(authenticateLocalSession(app, sessionToken)).resolves.toBeNull();
+    await expect(authenticateLocalSession(auth, sessionToken)).resolves.toBeNull();
 
     const resetToken = Buffer.alloc(32, 32);
-    await createLocalAuthSession(app, {
+    await createLocalAuthSession(auth, {
       accountId: identity.accountId,
       bindingId: identity.bindingId,
       tokenHash: resetToken,
       providerSessionId: "session_password_reset",
       freshAuthenticatedAt: new Date(),
       providerExpiresAt: new Date(Date.now() + 60 * 60 * 1_000),
-      correlationId: await createDatabaseUuidV7(app),
+      correlationId: await createDatabaseUuidV7(auth),
     });
     await expect(
-      revokeProviderIdentitySessions(app, {
+      revokeProviderIdentitySessions(auth, {
         providerKey: "workos",
         providerSubject: "user_provider_events",
         reason: "PROVIDER_PASSWORD_RESET",
-        correlationId: await createDatabaseUuidV7(app),
+        correlationId: await createDatabaseUuidV7(auth),
       }),
     ).resolves.toBe(1);
-    await expect(authenticateLocalSession(app, resetToken)).resolves.toBeNull();
+    await expect(authenticateLocalSession(auth, resetToken)).resolves.toBeNull();
   });
 
   it("keeps the web runtime behind the auth-owned PostgreSQL session adapter", async () => {
-    const store = new MemoidAuthSessionStore(isolated.connectionString, 1);
+    const store = new MemoidAuthSessionStore(
+      (() => {
+        const url = new URL(isolated.connectionString);
+        url.username = "memoid_auth";
+        url.password = "synthetic-auth-password";
+        return url.toString();
+      })(),
+      1,
+    );
     const token = Buffer.alloc(32, 41);
     const identity = {
       providerKey: "workos",

@@ -13,6 +13,10 @@ const accountB = parseUuidV7("018f47c2-1723-7b41-8e0b-3f63207d9402", "AccountId"
 const workspace = parseUuidV7("018f47c2-1723-7b41-8e0b-3f63207d9403", "WorkspaceId");
 const workspaceB = parseUuidV7("018f47c2-1723-7b41-8e0b-3f63207d9407", "WorkspaceId");
 const actor = parseUuidV7("018f47c2-1723-7b41-8e0b-3f63207d9404", "ActorId");
+const systemActorA = parseUuidV7("018f47c2-1723-7b41-8e0b-3f63207d9410", "ActorId");
+const systemActorB = parseUuidV7("018f47c2-1723-7b41-8e0b-3f63207d9411", "ActorId");
+const workerActorA = parseUuidV7("018f47c2-1723-7b41-8e0b-3f63207d9412", "ActorId");
+const workerActorB = parseUuidV7("018f47c2-1723-7b41-8e0b-3f63207d9413", "ActorId");
 const bindingId = parseUuidV7("018f47c2-1723-7b41-8e0b-3f63207d9405", "IdentityBindingId");
 const sessionId = parseUuidV7("018f47c2-1723-7b41-8e0b-3f63207d9406", "AuthSessionId");
 
@@ -139,5 +143,83 @@ describe("Stage 10C identity, session, and authorization decisions", () => {
         actor: { ...actorBinding, kind: "MEMOID_SYSTEM" },
       }),
     ).toEqual({ allowed: false, reason: "ACTOR_MISMATCH" });
+  });
+
+  it.each([
+    {
+      name: "the bound system Actor",
+      principal: { kind: "SYSTEM" as const, id: "policy-a", boundActorId: systemActorA },
+      actor: { id: systemActorA, kind: "MEMOID_SYSTEM" as const, reference: "system:policy-a" },
+      allowed: true,
+    },
+    {
+      name: "a different system Actor",
+      principal: { kind: "SYSTEM" as const, id: "policy-a", boundActorId: systemActorA },
+      actor: { id: systemActorB, kind: "MEMOID_SYSTEM" as const, reference: "system:policy-b" },
+      allowed: false,
+    },
+    {
+      name: "an unrelated worker Actor from a system principal",
+      principal: { kind: "SYSTEM" as const, id: "policy-a", boundActorId: systemActorA },
+      actor: { id: workerActorA, kind: "MEMOID_WORKER" as const, reference: "worker:a" },
+      allowed: false,
+    },
+    {
+      name: "the bound worker Actor",
+      principal: { kind: "WORKER" as const, id: "worker-a", boundActorId: workerActorA },
+      actor: { id: workerActorA, kind: "MEMOID_WORKER" as const, reference: "worker:a" },
+      allowed: true,
+    },
+    {
+      name: "a different worker Actor",
+      principal: { kind: "WORKER" as const, id: "worker-a", boundActorId: workerActorA },
+      actor: { id: workerActorB, kind: "MEMOID_WORKER" as const, reference: "worker:b" },
+      allowed: false,
+    },
+    {
+      name: "a system Actor without an explicit binding",
+      principal: { kind: "SYSTEM" as const, id: "policy-a" },
+      actor: { id: systemActorA, kind: "MEMOID_SYSTEM" as const, reference: "system:policy-a" },
+      allowed: false,
+    },
+    {
+      name: "a system Actor from a human principal",
+      principal: { kind: "HUMAN" as const, id: "user_01", accountId: accountA },
+      actor: { id: systemActorA, kind: "MEMOID_SYSTEM" as const, reference: "system:policy-a" },
+      allowed: false,
+    },
+    {
+      name: "a privileged Actor from an integration principal",
+      principal: { kind: "INTEGRATION" as const, id: "integration-a" },
+      actor: { id: workerActorA, kind: "MEMOID_WORKER" as const, reference: "worker:a" },
+      allowed: false,
+    },
+    {
+      name: "a privileged Actor from a developer principal",
+      principal: { kind: "DEVELOPER_CLIENT" as const, id: "client-a" },
+      actor: { id: systemActorA, kind: "MEMOID_SYSTEM" as const, reference: "system:policy-a" },
+      allowed: false,
+    },
+    {
+      name: "a privileged Actor from an unknown principal",
+      principal: { kind: "UNKNOWN" as never, id: "unknown", boundActorId: systemActorA },
+      actor: { id: systemActorA, kind: "MEMOID_SYSTEM" as const, reference: "system:policy-a" },
+      allowed: false,
+    },
+  ])("fails closed when binding $name", ({ principal, actor: requestedActor, allowed }) => {
+    const decision = authorize({
+      principal: {
+        ...principal,
+        active: true,
+        sessionRevoked: false,
+        roleAssignments: [{ role: "PERSONAL_WORKSPACE_OWNER", workspaceId: workspace }],
+      },
+      actor: requestedActor,
+      capability: "WORKSPACE_READ",
+      workspaceId: workspace,
+      grants: [],
+    });
+    expect(decision.allowed).toBe(allowed);
+    if (!allowed) expect(decision).toEqual({ allowed: false, reason: "ACTOR_MISMATCH" });
   });
 });

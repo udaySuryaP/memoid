@@ -442,30 +442,6 @@ async function createIdentityAndSessionFunctions(db: Kysely<unknown>): Promise<v
       return new_intent_id;
     end $$`.execute(db);
 
-  await sql`create function memoid.consume_step_up_intent(
-      p_token_hash bytea, p_nonce_hash bytea, p_intent_id uuid
-    ) returns table (
-      action_key varchar, workspace_id uuid, project_id uuid, return_path varchar, correlation_id uuid
-    ) language plpgsql security definer set search_path = pg_catalog, memoid as $$
-    declare
-      session_row memoid.auth_sessions%rowtype;
-      intent_row memoid.auth_step_up_intents%rowtype;
-      now_at timestamptz := clock_timestamp();
-    begin
-      if octet_length(p_token_hash) <> 32 or octet_length(p_nonce_hash) <> 32 then return; end if;
-      select * into session_row from memoid.auth_sessions where token_hash = p_token_hash for update;
-      if not found or session_row.revoked_at is not null or now_at >= session_row.absolute_expires_at
-        or now_at >= session_row.idle_expires_at or now_at >= session_row.provider_expires_at
-        or now_at - session_row.fresh_authenticated_at > interval '15 minutes' then return; end if;
-      select * into intent_row from memoid.auth_step_up_intents
-        where id = p_intent_id and account_id = session_row.account_id
-          and auth_session_id = session_row.id and nonce_hash = p_nonce_hash for update;
-      if not found or intent_row.consumed_at is not null or now_at >= intent_row.expires_at then return; end if;
-      update memoid.auth_step_up_intents set consumed_at = now_at where id = intent_row.id;
-      return query select intent_row.action_key, intent_row.workspace_id, intent_row.project_id,
-        intent_row.return_path, intent_row.correlation_id;
-    end $$`.execute(db);
-
   await sql`create function memoid.complete_step_up_intent(
       p_old_token_hash bytea, p_nonce_hash bytea, p_intent_id uuid, p_new_token_hash bytea,
       p_provider_subject varchar, p_provider_session_id varchar,
@@ -640,13 +616,26 @@ async function createGuardsIndexesAndPermissions(db: Kysely<unknown>): Promise<v
   await sql`create index account_security_events_occurred_idx
     on memoid.account_security_events (account_id, occurred_at desc, id)`.execute(db);
 
-  await sql`revoke all on schema memoid from public, memoid_app`.execute(db);
-  await sql`revoke all on all tables in schema memoid from public, memoid_app`.execute(db);
-  await sql`revoke all on all sequences in schema memoid from public, memoid_app`.execute(db);
-  await sql`revoke all on all functions in schema memoid from public, memoid_app`.execute(db);
+  await sql`revoke all on schema memoid from public, memoid_app, memoid_auth`.execute(db);
+  await sql`revoke all on all tables in schema memoid from public, memoid_app, memoid_auth`.execute(
+    db,
+  );
+  await sql`revoke all on all sequences in schema memoid from public, memoid_app, memoid_auth`.execute(
+    db,
+  );
+  await sql`revoke all on all functions in schema memoid from public, memoid_app, memoid_auth`.execute(
+    db,
+  );
   await sql`grant usage on schema memoid to memoid_app`.execute(db);
   await sql`grant select on all tables in schema memoid to memoid_app`.execute(db);
   await sql`grant insert on memoid.actors, memoid.audit_events to memoid_app`.execute(db);
+  await sql`grant execute on function
+      memoid.is_uuid_v7(uuid), memoid.is_sanitized_metadata(jsonb),
+      memoid.current_account_id(), memoid.current_workspace_id(), memoid.current_project_id(),
+      memoid.current_actor_id(), memoid.has_workspace_scope(uuid), memoid.has_project_scope(uuid,uuid),
+      memoid.has_actor_scope(uuid,uuid,varchar,varchar,varchar)
+    to memoid_app`.execute(db);
+  await sql`grant usage on schema memoid to memoid_auth`.execute(db);
   await sql`grant execute on function
       memoid.resolve_account_identity(varchar,varchar,varchar,boolean),
       memoid.create_auth_session(uuid,uuid,bytea,varchar,timestamptz,timestamptz,uuid),
@@ -655,15 +644,9 @@ async function createGuardsIndexesAndPermissions(db: Kysely<unknown>): Promise<v
       memoid.revoke_auth_session(bytea,varchar,uuid),
       memoid.revoke_provider_auth_session(varchar,varchar,uuid),
       memoid.revoke_provider_identity_sessions(varchar,varchar,varchar,uuid),
-      memoid.revoke_all_account_auth_sessions(bytea,varchar,uuid),
       memoid.create_step_up_intent(bytea,bytea,varchar,uuid,uuid,varchar,uuid),
-      memoid.consume_step_up_intent(bytea,bytea,uuid),
-      memoid.complete_step_up_intent(bytea,bytea,uuid,bytea,varchar,varchar,timestamptz,timestamptz),
-      memoid.is_uuid_v7(uuid), memoid.is_sanitized_metadata(jsonb),
-      memoid.current_account_id(), memoid.current_workspace_id(), memoid.current_project_id(),
-      memoid.current_actor_id(), memoid.has_workspace_scope(uuid), memoid.has_project_scope(uuid,uuid),
-      memoid.has_actor_scope(uuid,uuid,varchar,varchar,varchar)
-    to memoid_app`.execute(db);
+      memoid.complete_step_up_intent(bytea,bytea,uuid,bytea,varchar,varchar,timestamptz,timestamptz)
+    to memoid_auth`.execute(db);
   await sql`comment on schema memoid is 'Memoid product schema with application-primary authorization and forced transaction-scoped RLS defense in depth'`.execute(
     db,
   );
@@ -709,7 +692,6 @@ export const stage10cIdentityAuthzRlsMigration: Migration = {
       memoid.revoke_provider_identity_sessions(varchar,varchar,varchar,uuid),
       memoid.revoke_all_account_auth_sessions(bytea,varchar,uuid),
       memoid.create_step_up_intent(bytea,bytea,varchar,uuid,uuid,varchar,uuid),
-      memoid.consume_step_up_intent(bytea,bytea,uuid),
       memoid.complete_step_up_intent(bytea,bytea,uuid,bytea,varchar,varchar,timestamptz,timestamptz),
       memoid.initialize_account_security_state(), memoid.current_account_id(),
       memoid.current_workspace_id(), memoid.current_project_id(), memoid.current_actor_id(),
@@ -718,6 +700,9 @@ export const stage10cIdentityAuthzRlsMigration: Migration = {
     await sql`revoke all on schema memoid from memoid_app`.execute(db);
     await sql`revoke all on all tables in schema memoid from memoid_app`.execute(db);
     await sql`revoke all on all functions in schema memoid from memoid_app`.execute(db);
+    await sql`revoke all on schema memoid from memoid_auth`.execute(db);
+    await sql`revoke all on all tables in schema memoid from memoid_auth`.execute(db);
+    await sql`revoke all on all functions in schema memoid from memoid_auth`.execute(db);
     await sql`reset role`.execute(db);
   },
 };

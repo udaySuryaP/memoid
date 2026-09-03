@@ -18,15 +18,17 @@ Sensitive actions create a ten-minute, Account/session/action/scope-bound intent
 
 ## Authorization and Actor binding
 
-The pure evaluator separates principal, Actor, capability, role bundle, explicit grant, resource state, and fresh-auth requirements. Unknown values and ambiguity deny. Explicit deny precedes allow. The current human principal may bind only the Workspace `HUMAN` Actor whose stable reference is `account:<AccountId>`; untrusted callers cannot select Memoid system/worker Actors.
+The pure evaluator separates principal, Actor, capability, role bundle, explicit grant, resource state, and fresh-auth requirements. Unknown values and ambiguity deny. Explicit deny precedes allow. The current human principal may bind only the Workspace `HUMAN` Actor whose stable reference is `account:<AccountId>`. A Memoid `SYSTEM` principal contains one server-issued `boundActorId` and may use only that exact `MEMOID_SYSTEM` Actor; a distinct `WORKER` principal is likewise bound to one exact `MEMOID_WORKER` Actor. Missing bindings, cross-kind selection, and cross-system/cross-worker Actor IDs deny.
 
 The closed 10C vocabulary is `WORKSPACE_DISCOVER`, `WORKSPACE_READ`, `WORKSPACE_MANAGE_SECURITY`, `PROJECT_DISCOVER`, `PROJECT_READ`, `PROJECT_SUBMIT_CANDIDATE`, `PROJECT_CONTROL`, and `AUDIT_READ`. `PERSONAL_WORKSPACE_OWNER` is the only active human bundle. `INTEGRATION_BASE` is a closed future mapping only and creates no Integration runtime.
 
 ## PostgreSQL enforcement
 
-`memoid_app` is the direct product runtime and must remain non-owner, non-superuser, and `NOBYPASSRLS`. Each request uses a transaction-local validated context: Account plus optional exact Workspace, Project, and server-bound Actor. Context is never set connection-globally.
+`memoid_app` is the ordinary product runtime and must remain non-owner, non-superuser, `NOINHERIT`, and `NOBYPASSRLS`. Each request uses a transaction-local validated context: Account plus optional exact Workspace, Project, and server-bound Actor. Context is never set connection-globally.
 
-Every `memoid` table has RLS enabled and forced. Policies follow Account, Workspace, Project, and Actor shapes; repeated composite foreign keys retain child attachment integrity. Runtime privileges are intentionally narrower than policy visibility: read access is RLS-filtered, only exact human Actor and immutable Audit inserts are directly granted, and identity/session changes use reviewed security-definer functions. No Workspace/Project lifecycle, Operation execution, Source ingestion, review, reconciliation, export, deletion, or later-vertical write is granted by 10C.
+Every `memoid` table has RLS enabled and forced. Policies follow Account, Workspace, Project, and Actor shapes; repeated composite foreign keys retain child attachment integrity. Runtime privileges are intentionally narrower than policy visibility: read access is RLS-filtered, and only exact human Actor and immutable Audit inserts are directly granted.
+
+`memoid_auth` is a separate trusted authentication persistence role used only through the auth-owned store by the WorkOS callback, local-session checks, logout/step-up flow, and verified provider webhook adapter. It is `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOINHERIT`, and `NOBYPASSRLS`; owns no product table; has no table or sequence privileges; and can execute only nine reviewed identity/session functions. Conversely, `memoid_app` cannot execute any of those elevated functions. The former standalone `consume_step_up_intent` function no longer exists: only provider-backed `complete_step_up_intent` can consume an intent, and it atomically validates fresh authentication, rotates the session, and consumes the intent. No Workspace/Project lifecycle, Operation execution, Source ingestion, review, reconciliation, export, deletion, or later-vertical write is granted by 10C.
 
 The migration preserves Stage 10B Actor snapshot canonicalization and immutable Audit history. Account security events cover pre-Project authentication transitions without fabricating a Project; Project-scoped Audit Events remain available where an actual Actor and Project exist.
 

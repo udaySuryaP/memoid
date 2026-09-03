@@ -90,7 +90,7 @@ Intent replay, concurrent second completion, stale session, subject mismatch, ro
 - **Actor attribution:** the authenticated Account is bound to the Workspace `HUMAN` Actor whose reference is that stable Account. It answers who/what receives attribution.
 - **Authorization:** a fresh decision determines whether that principal may perform one capability on one current scope now.
 
-No caller-supplied Actor is accepted. Human principals may bind only their Account Actor. Untrusted inputs cannot select or create `MEMOID_SYSTEM` or `MEMOID_WORKER`; future Integration/Developer principals receive distinct Actor identities and never inherit a human Account's roles.
+No caller-supplied Actor is accepted. Human principals may bind only their Account Actor. A `SYSTEM` principal is server-bound to one exact `MEMOID_SYSTEM` Actor ID, while the semantically distinct `WORKER` principal is server-bound to one exact `MEMOID_WORKER` Actor ID. Neither may select another instance or cross Actor kind. Untrusted inputs cannot select or create these privileged Actors; future Integration/Developer principals receive distinct Actor identities and never inherit a human Account's roles.
 
 ### Closed 10C capability vocabulary
 
@@ -122,7 +122,7 @@ Every ambiguous case denies. Role-name checks remain inside the evaluator/bundle
 
 ## B4. PostgreSQL runtime role, transaction context, and RLS
 
-Application authorization remains primary. `memoid_app` is the single non-owner runtime role for current product requests and remains `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOINHERIT`, and `NOBYPASSRLS`. `memoid_owner` remains migration ownership and is rejected by the runtime-role assertion.
+Application authorization remains primary. `memoid_app` is the non-owner role for ordinary product requests and remains `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOINHERIT`, and `NOBYPASSRLS`. `memoid_auth` is a separate trusted authentication persistence role with the same restrictive attributes. It owns no tables, receives no table/sequence mutation or read privileges, and cannot be used as a generic tenant-access role. `memoid_owner` remains migration ownership and is rejected by the runtime-role assertion.
 
 Every product transaction sets transaction-local, validated UUID settings using `set_config(..., true)`:
 
@@ -143,7 +143,29 @@ RLS policy shapes are scope-specific:
 - every Project-owned 10A/10B row: exact Workspace + Project, with Account ownership resolved through Workspace.
 - child/provenance/frontier/attempt rows retain their repeated composite scope and cannot attach to a known UUID outside it.
 
-All tenant/product tables enable and force RLS. `PUBLIC` receives no schema/table/function privilege. Runtime grants are operation-specific: immutable Actor/Audit/Context/history rows receive no ordinary update/delete; Workspace/Project lifecycle writes remain unavailable until 10D; security-session state changes occur only through the 10C security-definer functions; existing Operation/frontier foundations are RLS-filtered reads only, with no runtime write functions granted before an owning protected-handler vertical needs them.
+All tenant/product tables enable and force RLS. `PUBLIC` receives no schema/table/function privilege. Runtime grants are operation-specific: immutable Actor/Audit/Context/history rows receive no ordinary update/delete; Workspace/Project lifecycle writes remain unavailable until 10D; security-session state changes occur only through the bounded `memoid_auth` function allowlist; existing Operation/frontier foundations are RLS-filtered reads only, with no runtime write functions granted before an owning protected-handler vertical needs them. The obsolete `consume_step_up_intent` function is removed, so the only intent-consumption contract is provider-backed `complete_step_up_intent`.
+
+### SECURITY DEFINER inventory and caller matrix
+
+Every entry is owned by `memoid_owner` and pins `search_path = pg_catalog, memoid`. `PUBLIC` has no execution privilege.
+
+| Function                            | Allowed direct caller    | Purpose / visibility crossing                                                                                   | Required validation                                                                                                          |
+| ----------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `initialize_account_security_state` | trigger only             | Initializes the security row for the newly inserted Account                                                     | Trigger row only; no runtime EXECUTE                                                                                         |
+| `resolve_account_identity`          | `memoid_auth`            | Resolves provider subject and may create an Account/personal Workspace across ordinary RLS visibility           | Verified/bounded provider evidence, uniqueness locks, ambiguous email denial                                                 |
+| `create_auth_session`               | `memoid_auth`            | Mints a local session for an exact Account/binding                                                              | 32-byte hash, active verified binding/account, UUIDv7 correlation, bounded provider/fresh times                              |
+| `authenticate_auth_session`         | `memoid_auth`            | Finds one opaque-token session outside product RLS                                                              | Exact 32-byte hash, active binding/epoch, all expiries; updates bounded activity                                             |
+| `mark_auth_session_provider_state`  | `memoid_auth`            | Updates the matched session after provider verification                                                         | Exact 32-byte hash and bounded provider expiry; inactive result revokes                                                      |
+| `revoke_auth_session`               | `memoid_auth`            | Revokes the session selected by its opaque token                                                                | Exact hash, controlled reason, UUIDv7 correlation                                                                            |
+| `revoke_provider_auth_session`      | `memoid_auth`            | Crosses Accounts only to revoke the exact verified provider session ID                                          | Bounded provider session ID, controlled reason, UUIDv7 correlation                                                           |
+| `revoke_provider_identity_sessions` | `memoid_auth`            | Crosses Accounts only for a verified provider identity security event                                           | Exact provider key/subject, controlled reason, UUIDv7 correlation                                                            |
+| `revoke_all_account_auth_sessions`  | none (reserved/internal) | Token-selects one Account and revokes its sessions                                                              | Exact hash, controlled reason, UUIDv7 correlation; no runtime EXECUTE grant                                                  |
+| `create_step_up_intent`             | `memoid_auth`            | Creates a session/Account-bound protected-action challenge                                                      | Active session, hashed nonce, allowlisted shape, owned Workspace/Project, safe return path, UUIDv7 correlation               |
+| `complete_step_up_intent`           | `memoid_auth`            | Atomically validates fresh provider evidence, consumes intent, revokes old session, and creates rotated session | Same subject/session lineage, active old session, nonce, unconsumed intent, `auth_time >= challenge`, expiry and hash bounds |
+| `has_workspace_scope`               | `memoid_app`             | RLS helper checks exact transaction Account/Workspace ownership                                                 | Transaction-local UUID context plus existing owned Workspace                                                                 |
+| `has_project_scope`                 | `memoid_app`             | RLS helper checks exact transaction Workspace/Project                                                           | Transaction-local UUID context plus owned Workspace and exact Project                                                        |
+
+The ordinary role separately receives only the non-elevated context/constraint helpers needed by forced RLS and allowed Actor/Audit inserts. Catalog and live-connection tests pin this matrix and prove that `memoid_auth` cannot read or mutate product tables directly.
 
 The real PostgreSQL proof must use `memoid_app` and one reused pool to show no context after commit, rollback/throw, savepoint, cancelled query, or repeated A/B reuse. It must test known cross-tenant UUIDs, joins, parent/child attachment, SELECT/INSERT/UPDATE/DELETE according to grants, catalog ownership/role flags, forced-RLS coverage, and retained immutable-history triggers/privileges.
 

@@ -15,7 +15,7 @@ export type Capability = (typeof CAPABILITIES)[number];
 
 export const ROLE_BUNDLES = ["PERSONAL_WORKSPACE_OWNER", "INTEGRATION_BASE"] as const;
 export type RoleBundle = (typeof ROLE_BUNDLES)[number];
-export type PrincipalKind = "HUMAN" | "INTEGRATION" | "DEVELOPER_CLIENT" | "SYSTEM";
+export type PrincipalKind = "HUMAN" | "INTEGRATION" | "DEVELOPER_CLIENT" | "SYSTEM" | "WORKER";
 
 export interface RoleAssignment {
   readonly role: RoleBundle;
@@ -38,6 +38,8 @@ export interface AuthenticatedPrincipal {
   readonly kind: PrincipalKind;
   readonly id: string;
   readonly accountId?: AccountId;
+  /** Required for Memoid-controlled SYSTEM and WORKER principals. */
+  readonly boundActorId?: ActorId;
   readonly active: boolean;
   readonly sessionRevoked: boolean;
   readonly roleAssignments: readonly RoleAssignment[];
@@ -112,7 +114,9 @@ function actorMatchesPrincipal(
     case "DEVELOPER_CLIENT":
       return actor.kind === "DEVELOPER_CLIENT" && actor.reference === `client:${principal.id}`;
     case "SYSTEM":
-      return actor.kind === "MEMOID_SYSTEM" || actor.kind === "MEMOID_WORKER";
+      return actor.kind === "MEMOID_SYSTEM" && principal.boundActorId === actor.id;
+    case "WORKER":
+      return actor.kind === "MEMOID_WORKER" && principal.boundActorId === actor.id;
     default:
       return false;
   }
@@ -138,6 +142,7 @@ export function authorize(request: AuthorizationRequest): AuthorizationDecision 
     return { allowed: false, reason: "ACTOR_MISMATCH" };
   if (
     principal.kind !== "SYSTEM" &&
+    principal.kind !== "WORKER" &&
     (request.actor.kind === "MEMOID_SYSTEM" || request.actor.kind === "MEMOID_WORKER")
   )
     return { allowed: false, reason: "SYSTEM_ACTOR_FORBIDDEN" };
