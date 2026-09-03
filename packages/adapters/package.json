@@ -8,8 +8,8 @@
     "./workspace-project": "./src/workspace-project.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-kms": "3.1119.0",
-    "@aws-sdk/client-s3": "3.1119.0",
+    "@aws-sdk/client-kms": "3.1121.0",
+    "@aws-sdk/client-s3": "3.1121.0",
     "@memoid/application": "workspace:*",
     "@memoid/db": "workspace:*",
     "@memoid/domain": "workspace:*",
