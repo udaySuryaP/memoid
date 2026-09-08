@@ -85,4 +85,21 @@ test.describe("Stage 10D Project surfaces", () => {
     await expect(page.getByText("Updated through optimistic concurrency.")).toBeVisible();
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   });
+
+  test("GitHub Source surface is bounded and fails closed when provider configuration is absent", async ({
+    page,
+  }) => {
+    await page.goto("/projects");
+    await page.getByRole("link", { name: /Browser proof project/ }).click();
+    await page.getByRole("link", { name: "GitHub source" }).click();
+    await expect(
+      page.getByRole("heading", { name: /Browser proof project · GitHub/ }),
+    ).toBeVisible();
+    await expect(page.getByText(/read-only Metadata and Contents access/i)).toBeVisible();
+    await expect(page.getByText(/not configured in this environment/i)).toBeVisible();
+    await expect(
+      page.getByText(/commits|branches|observations|reconciliation|context/i),
+    ).toHaveCount(0);
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  });
 });

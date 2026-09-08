@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./actor": "./src/actor.ts",
     "./authorization": "./src/authorization.ts",
+    "./github-source": "./src/github-source.ts",
     "./identifiers": "./src/identifiers.ts",
     "./values": "./src/values.ts",
     "./workspace-project": "./src/workspace-project.ts"

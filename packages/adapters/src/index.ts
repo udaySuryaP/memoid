@@ -11,6 +11,7 @@ import type { App } from "@octokit/app";
 import type { Octokit } from "@octokit/rest";
 
 export * from "./workspace-project.js";
+export * from "./github-source.js";
 
 export interface GitHubAdapterDependencies {
   readonly app: App;

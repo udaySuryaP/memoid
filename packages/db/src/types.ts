@@ -126,6 +126,73 @@ export interface SourcesTable extends ScopedRow {
   created_at: Timestamp;
 }
 
+export interface GitHubConnectionIntentsTable extends ScopedRow {
+  id: Generated<string>;
+  auth_session_id: string;
+  actor_id: string;
+  state_hash: Hash;
+  phase: "SETUP" | "SELECTION";
+  installation_id: string | null;
+  correlation_id: string;
+  created_at: Timestamp;
+  expires_at: RequiredTimestamp;
+  consumed_at: NullableTimestamp;
+}
+
+export interface GitHubRepositoryCandidatesTable extends ScopedRow {
+  intent_id: string;
+  repository_id: string;
+  app_id: string;
+  installation_id: string;
+  account_id: string;
+  owner_login: string;
+  repository_name: string;
+  full_name: string;
+  html_url: string;
+  visibility: "PUBLIC" | "PRIVATE" | "INTERNAL";
+  default_branch: string;
+  verified_at: RequiredTimestamp;
+  expires_at: RequiredTimestamp;
+}
+
+export interface GitHubSourceConnectionsTable extends ScopedRow {
+  source_id: string;
+  provider_key: "GITHUB";
+  app_id: string;
+  installation_id: string;
+  account_id: string;
+  repository_id: string;
+  owner_login: string;
+  repository_name: string;
+  full_name: string;
+  html_url: string;
+  visibility: "PUBLIC" | "PRIVATE" | "INTERNAL";
+  default_branch: string;
+  connection_state:
+    | "ACTIVE"
+    | "VERIFICATION_REQUIRED"
+    | "SUSPENDED"
+    | "INSTALLATION_DELETED"
+    | "REPOSITORY_ACCESS_REMOVED"
+    | "REPOSITORY_DELETED";
+  verified_at: RequiredTimestamp;
+  provider_occurred_at: NullableTimestamp;
+  state_changed_at: Timestamp;
+  created_at: Timestamp;
+}
+
+export interface GitHubProviderLifecycleFencesTable {
+  scope_key: string;
+  app_id: string;
+  installation_id: string;
+  repository_id: string | null;
+  connection_state: Exclude<GitHubSourceConnectionsTable["connection_state"], "ACTIVE">;
+  external_delivery_id: string;
+  payload_hash: Hash;
+  provider_occurred_at: NullableTimestamp;
+  recorded_at: Timestamp;
+}
+
 export interface SourceFrontierUnitsTable extends ScopedRow {
   id: Generated<string>;
   source_id: string;
@@ -424,6 +491,10 @@ export interface MemoidDatabase {
   "memoid.projects": ProjectsTable;
   "memoid.project_review_policy_versions": ProjectReviewPolicyVersionsTable;
   "memoid.sources": SourcesTable;
+  "memoid.github_connection_intents": GitHubConnectionIntentsTable;
+  "memoid.github_repository_candidates": GitHubRepositoryCandidatesTable;
+  "memoid.github_source_connections": GitHubSourceConnectionsTable;
+  "memoid.github_provider_lifecycle_fences": GitHubProviderLifecycleFencesTable;
   "memoid.source_frontier_units": SourceFrontierUnitsTable;
   "memoid.source_observations": SourceObservationsTable;
   "memoid.source_frontier_states": SourceFrontierStatesTable;

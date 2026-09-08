@@ -79,6 +79,9 @@ importers:
 
   apps/api:
     dependencies:
+      "@memoid/adapters":
+        specifier: workspace:*
+        version: link:../../packages/adapters
       "@memoid/config":
         specifier: workspace:*
         version: link:../../packages/config
@@ -91,6 +94,9 @@ importers:
       "@memoid/observability":
         specifier: workspace:*
         version: link:../../packages/observability
+      "@memoid/security":
+        specifier: workspace:*
+        version: link:../../packages/security
       fastify:
         specifier: 5.12.1
         version: 5.12.1
@@ -184,6 +190,9 @@ importers:
       "@memoid/domain":
         specifier: workspace:*
         version: link:../domain
+      "@memoid/security":
+        specifier: workspace:*
+        version: link:../security
       "@octokit/app":
         specifier: 16.1.4
         version: 16.1.4
