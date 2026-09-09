@@ -149,9 +149,9 @@ suite("Stage 10E GitHub Source lifecycle", () => {
     };
     const connected = await githubRepository.connect(context, request);
     expect(connected.replayed).toBe(false);
-    await sql`update memoid.github_connection_intents set expires_at = clock_timestamp() - interval '1 minute'
+    await sql`update memoid.github_connection_intents set expires_at = created_at + interval '1 microsecond'
       where id = ${intent.id}::uuid`.execute(isolated.db);
-    await sql`update memoid.github_repository_candidates set expires_at = clock_timestamp() - interval '1 minute'
+    await sql`update memoid.github_repository_candidates set expires_at = verified_at + interval '1 microsecond'
       where intent_id = ${intent.id}::uuid`.execute(isolated.db);
     expect(await githubRepository.connect(context, request)).toEqual({
       sourceId: connected.sourceId,

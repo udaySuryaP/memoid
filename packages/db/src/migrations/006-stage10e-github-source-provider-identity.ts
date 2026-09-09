@@ -144,6 +144,15 @@ async function createTables(db: Kysely<unknown>): Promise<void> {
       )
       .execute(db);
   }
+  await sql`alter table memoid.github_provider_lifecycle_fences enable row level security`.execute(
+    db,
+  );
+  await sql`alter table memoid.github_provider_lifecycle_fences force row level security`.execute(
+    db,
+  );
+  await sql`create policy owner_only on memoid.github_provider_lifecycle_fences
+    using (current_user = 'memoid_owner')
+    with check (current_user = 'memoid_owner')`.execute(db);
   await sql`create index github_connection_intents_expiry_idx
     on memoid.github_connection_intents (expires_at) where consumed_at is null`.execute(db);
   await sql`create index github_source_connections_provider_identity_idx
@@ -505,7 +514,7 @@ async function createProviderFunction(db: Kysely<unknown>): Promise<void> {
         select r.registration_outcome, r.receipt_id into receipt_outcome, receipt_id
           from memoid.register_provider_event_receipt(
             connection_row.workspace_id, connection_row.project_id, source_actor_id,
-            'GITHUB', 'INSTALLATION:' || p_installation_id, p_external_delivery_id,
+            'github', 'installation:' || p_installation_id, p_external_delivery_id,
             p_payload_hash, 'AUTHENTICATED', p_provider_occurred_at, now_at,
             event_correlation, null, jsonb_build_object('CONNECTION_STATE',p_connection_state)
           ) r;
@@ -582,6 +591,8 @@ export const stage10eGitHubSourceProviderIdentityMigration: Migration = {
     await createHumanFunctions(db);
     await createProviderFunction(db);
     await grantNarrowPermissions(db);
+    // Kysely records the migration in this same transaction after up() returns.
+    await sql`reset role`.execute(db);
   },
   async down(db) {
     await sql`set local role memoid_owner`.execute(db);
@@ -605,5 +616,7 @@ export const stage10eGitHubSourceProviderIdentityMigration: Migration = {
     await sql`drop table if exists memoid.github_repository_candidates`.execute(db);
     await sql`drop table if exists memoid.github_connection_intents`.execute(db);
     await sql`drop function if exists memoid.guard_github_source_connection_update()`.execute(db);
+    // Kysely removes the migration record in this same transaction after down() returns.
+    await sql`reset role`.execute(db);
   },
 };
