@@ -2,5 +2,6 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'memoid_owner') THEN CREATE ROLE memoid_owner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'memoid_app') THEN CREATE ROLE memoid_app LOGIN PASSWORD 'synthetic-app-password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'memoid_auth') THEN CREATE ROLE memoid_auth LOGIN PASSWORD 'synthetic-auth-password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'memoid_provider') THEN CREATE ROLE memoid_provider LOGIN PASSWORD 'synthetic-provider-password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS; END IF;
 END $$;
-DO $$ BEGIN EXECUTE format('GRANT CONNECT ON DATABASE %I TO memoid_app, memoid_auth', current_database()); END $$;
+DO $$ BEGIN EXECUTE format('GRANT CONNECT ON DATABASE %I TO memoid_app, memoid_auth, memoid_provider', current_database()); END $$;

@@ -150,6 +150,26 @@ caption {
   background: var(--m-success);
   flex: none;
 }
+.repository-selection {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+.repository-selection label {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-r-md);
+  padding: 14px;
+}
+.repository-selection span {
+  display: grid;
+  gap: 4px;
+}
+.repository-selection small {
+  color: var(--m-text-subtle);
+}
 .security-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./github-source": "./src/github-source.ts",
     "./workspace-project": "./src/workspace-project.ts"
   },
   "dependencies": {

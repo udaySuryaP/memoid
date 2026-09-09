@@ -23,9 +23,14 @@ export default async function ProjectPage({
       eyebrow={`${project.lifecycleState} · ${project.reviewPolicy} review`}
       title={project.displayName}
       actions={
-        <Link className="secondary-action" href={`/projects/${project.id}/settings`}>
-          Project settings
-        </Link>
+        <>
+          <Link className="secondary-action" href={`/projects/${project.id}/sources/github`}>
+            GitHub source
+          </Link>
+          <Link className="secondary-action" href={`/projects/${project.id}/settings`}>
+            Project settings
+          </Link>
+        </>
       }
     >
       <section className="project-panel">

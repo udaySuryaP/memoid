@@ -16,6 +16,11 @@ describe("central log redaction", () => {
         password: "synthetic-password",
         token: "synthetic-token",
         apiKey: "synthetic-key",
+        access_token: "synthetic-access-token",
+        refresh_token: "synthetic-refresh-token",
+        code: "synthetic-oauth-code",
+        state: "synthetic-oauth-state",
+        signature: "synthetic-webhook-signature",
         safe: "visible",
       },
       "fixture",
@@ -23,6 +28,11 @@ describe("central log redaction", () => {
     expect(output).not.toContain("synthetic-password");
     expect(output).not.toContain("synthetic-token");
     expect(output).not.toContain("synthetic-key");
+    expect(output).not.toContain("synthetic-access-token");
+    expect(output).not.toContain("synthetic-refresh-token");
+    expect(output).not.toContain("synthetic-oauth-code");
+    expect(output).not.toContain("synthetic-oauth-state");
+    expect(output).not.toContain("synthetic-webhook-signature");
     expect(output).toContain("[REDACTED]");
     expect(output).toContain("visible");
   });
