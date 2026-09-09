@@ -249,6 +249,7 @@ suite("Stage 10E GitHub Source lifecycle", () => {
         providerOccurredAt: null,
       }),
     ).toBe(0);
+    await new Promise((resolve) => setTimeout(resolve, 10));
     const intent = await githubRepository.begin(context, projectId);
     await githubRepository.recordCandidate(context, {
       projectId,

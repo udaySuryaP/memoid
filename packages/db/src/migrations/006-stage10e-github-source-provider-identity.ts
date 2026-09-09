@@ -371,8 +371,7 @@ async function createHumanFunctions(db: Kysely<unknown>): Promise<void> {
       if not found then raise exception 'GITHUB_REPOSITORY_NOT_VERIFIED'; end if;
       if exists (select 1 from memoid.github_provider_lifecycle_fences f
         where f.app_id = candidate_row.app_id and f.installation_id = candidate_row.installation_id
-          and (f.repository_id is null or f.repository_id = candidate_row.repository_id)
-          and f.recorded_at >= candidate_row.verified_at)
+          and (f.repository_id is null or f.repository_id = candidate_row.repository_id))
       then raise exception 'GITHUB_PROVIDER_STATE_CHANGED'; end if;
       select * into claim_row from memoid.claim_idempotency(
         project_row.workspace_id, project_row.id, actor_row.id, 'GITHUB_SOURCE_CONNECT',
