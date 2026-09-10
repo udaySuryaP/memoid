@@ -254,7 +254,6 @@ async function createSchedulingFunction(db: Kysely<unknown>): Promise<void> {
         next_sequence, current_ingested, true, p_correlation_id, p_causation_id
       ) on conflict (workspace_id, project_id, unit_kind, unit_key) do update
         set desired_sequence = excluded.desired_sequence, follow_up_required = true,
-          correlation_id = excluded.correlation_id, causation_id = excluded.causation_id,
           state_changed_at = now_at
         returning id into process_id;
       insert into memoid.audit_events (
