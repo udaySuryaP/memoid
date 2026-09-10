@@ -8,6 +8,7 @@ export type ProjectId = OpaqueId<"ProjectId">;
 export type SourceId = OpaqueId<"SourceId">;
 export type SourceFrontierUnitId = OpaqueId<"SourceFrontierUnitId">;
 export type SourceObservationId = OpaqueId<"SourceObservationId">;
+export type EvidenceReferenceId = OpaqueId<"EvidenceReferenceId">;
 export type CandidateSubmissionId = OpaqueId<"CandidateSubmissionId">;
 export type CandidateAssertionId = OpaqueId<"CandidateAssertionId">;
 export type WorkingContextItemId = OpaqueId<"WorkingContextItemId">;
