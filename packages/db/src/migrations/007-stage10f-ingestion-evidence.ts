@@ -205,26 +205,29 @@ async function createSchedulingFunction(db: Kysely<unknown>): Promise<void> {
       insert into memoid.source_frontier_units (workspace_id, project_id, source_id, scope_key, ref_key)
         values (p_workspace_id, p_project_id, p_source_id, p_scope_key, p_ref_key)
         on conflict (workspace_id, project_id, source_id, scope_key, ref_key) do nothing;
-      select id into unit_id from memoid.source_frontier_units
-        where workspace_id = p_workspace_id and project_id = p_project_id and source_id = p_source_id
-          and scope_key = p_scope_key and ref_key = p_ref_key for update;
+      select u.id into unit_id from memoid.source_frontier_units u
+        where u.workspace_id = p_workspace_id and u.project_id = p_project_id
+          and u.source_id = p_source_id and u.scope_key = p_scope_key and u.ref_key = p_ref_key
+        for update;
       insert into memoid.source_frontier_states (workspace_id, project_id, frontier_unit_id)
         values (p_workspace_id, p_project_id, unit_id) on conflict do nothing;
-      select observed_sequence, coalesce(ingested_sequence, 0) into current_sequence, current_ingested from memoid.source_frontier_states
-        where workspace_id = p_workspace_id and project_id = p_project_id and frontier_unit_id = unit_id
+      select f.observed_sequence, coalesce(f.ingested_sequence, 0)
+        into current_sequence, current_ingested from memoid.source_frontier_states f
+        where f.workspace_id = p_workspace_id and f.project_id = p_project_id
+          and f.frontier_unit_id = unit_id
         for update;
       if current_sequence is not null then
-        select * into current_observation from memoid.source_observations
-          where workspace_id = p_workspace_id and project_id = p_project_id
-            and frontier_unit_id = unit_id and observation_sequence = current_sequence;
+        select * into current_observation from memoid.source_observations o
+          where o.workspace_id = p_workspace_id and o.project_id = p_project_id
+            and o.frontier_unit_id = unit_id and o.observation_sequence = current_sequence;
         if current_observation.external_revision = revision_value
           and (current_observation.metadata ->> 'REF_DELETED')::boolean = (p_external_revision is null)
           and (current_observation.metadata ->> 'IS_DEFAULT_REF')::boolean = p_is_default_ref
         then
-          select id into process_id from memoid.processing_units
-            where workspace_id = p_workspace_id and project_id = p_project_id
-              and unit_kind = 'SOURCE_INGESTION'
-              and unit_key = 'source:' || p_source_id::text || '/frontier:' || unit_id::text;
+          select p.id into process_id from memoid.processing_units p
+            where p.workspace_id = p_workspace_id and p.project_id = p_project_id
+              and p.unit_kind = 'SOURCE_INGESTION'
+              and p.unit_key = 'source:' || p_source_id::text || '/frontier:' || unit_id::text;
           return query select unit_id, current_observation.id, current_sequence, process_id, false;
           return;
         end if;
@@ -238,9 +241,10 @@ async function createSchedulingFunction(db: Kysely<unknown>): Promise<void> {
         p_observed_at, p_observed_at,
         jsonb_build_object('REF_DELETED', p_external_revision is null, 'IS_DEFAULT_REF', p_is_default_ref)
       ) returning id into new_observation_id;
-      update memoid.source_frontier_states set observed_sequence = next_sequence,
+      update memoid.source_frontier_states f set observed_sequence = next_sequence,
         desired_sequence = next_sequence, recorded_at = now_at
-        where workspace_id = p_workspace_id and project_id = p_project_id and frontier_unit_id = unit_id;
+        where f.workspace_id = p_workspace_id and f.project_id = p_project_id
+          and f.frontier_unit_id = unit_id;
       insert into memoid.processing_units (
         workspace_id, project_id, unit_kind, unit_key, desired_sequence,
         processed_sequence, follow_up_required, correlation_id, causation_id
@@ -541,6 +545,11 @@ async function createSecurityBoundary(db: Kysely<unknown>): Promise<void> {
       memoid.complete_source_ingestion(uuid,uuid,uuid,uuid,uuid,uuid,uuid,varchar,integer,bigint,jsonb),
       memoid.retry_source_ingestion(uuid,uuid,uuid,uuid,uuid,uuid,timestamptz,varchar,jsonb),
       memoid.assert_ingestion_actor(uuid,uuid,uuid,boolean)
+    from public, memoid_app, memoid_auth, memoid_provider`.execute(db);
+  await sql`revoke all on function
+      memoid.is_safe_repository_path(text),
+      memoid.guard_evidence_reference_change(),
+      memoid.guard_ingestion_disposition()
     from public, memoid_app, memoid_auth, memoid_provider`.execute(db);
   await sql`grant execute on function
       memoid.schedule_source_observation(uuid,uuid,uuid,uuid,varchar,varchar,varchar,boolean,timestamptz,uuid,uuid),
