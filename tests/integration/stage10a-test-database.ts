@@ -27,10 +27,19 @@ export async function createIsolatedTestDatabase(
     connectionString: testUrl.toString(),
     destroy: async () => {
       await db.destroy();
-      await sql<{ terminated: boolean }>`select pg_terminate_backend(pid) as terminated
-        from pg_stat_activity where datname = ${databaseName} and pid <> pg_backend_pid()`.execute(
-        control,
-      );
+      let remainingConnections = 0;
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const result = await sql<{ count: string }>`select count(*)::text as count
+          from pg_stat_activity where datname = ${databaseName}`.execute(control);
+        remainingConnections = Number(result.rows[0]?.count ?? "0");
+        if (remainingConnections === 0) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      if (remainingConnections !== 0) {
+        throw new Error(
+          `Refusing to terminate ${remainingConnections} leaked connection(s) to ${databaseName}`,
+        );
+      }
       await sql.raw(`drop database if exists "${databaseName}"`).execute(control);
       await control.destroy();
     },
