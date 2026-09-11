@@ -17,7 +17,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint . && dependency-cruiser --config dependency-cruiser.config.mjs apps packages tests",
     "typecheck": "tsc --noEmit -p tsconfig.check.json && turbo run typecheck",
-    "test": "vitest run --exclude tests/integration/**",
+    "test": "vitest run --exclude \"tests/integration/**\"",
     "test:security": "vitest run tests/security",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "corepack pnpm --filter @memoid/web build && node tests/e2e/run.mjs",
