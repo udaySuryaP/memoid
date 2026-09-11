@@ -5,6 +5,7 @@ type RequiredTimestamp = ColumnType<Date, Date | string, never>;
 type NullableTimestamp = ColumnType<Date | null, Date | string | null | undefined, never>;
 type Int8 = ColumnType<string, string | number, string | number>;
 type GeneratedInt8 = ColumnType<string, string | number | undefined, string | number>;
+type NullableInt8 = ColumnType<string | null, string | number | null | undefined, never>;
 type Hash = ColumnType<Buffer, Buffer, never>;
 type NullableHash = ColumnType<Buffer | null, Buffer | null | undefined, never>;
 type Json = JSONColumnType<Readonly<Record<string, unknown>>>;
@@ -219,6 +220,34 @@ export interface SourceFrontierStatesTable extends ScopedRow {
   desired_sequence: Int8 | null;
   ingested_sequence: Int8 | null;
   reconciled_sequence: Int8 | null;
+  recorded_at: Timestamp;
+}
+
+export interface EvidenceReferencesTable extends ScopedRow {
+  id: Generated<string>;
+  source_id: string;
+  frontier_unit_id: string;
+  source_observation_id: string;
+  observation_sequence: Int8;
+  evidence_kind: "FILE" | "RENAMED_FILE" | "DELETION";
+  repository_revision: string;
+  repository_path: string;
+  previous_repository_path: string | null;
+  provider_object_id: string | null;
+  byte_size: NullableInt8;
+  content_sha256: NullableHash;
+  structural_locator: string | null;
+  created_at: Timestamp;
+}
+
+export interface SourceIngestionDispositionsTable extends ScopedRow {
+  frontier_unit_id: string;
+  observation_sequence: Int8;
+  source_observation_id: string;
+  disposition: "INGESTED" | "COALESCED" | "REF_DELETED";
+  covered_by_observation_id: string | null;
+  processed_by_actor_id: string;
+  lease_token: string;
   recorded_at: Timestamp;
 }
 
@@ -498,6 +527,8 @@ export interface MemoidDatabase {
   "memoid.source_frontier_units": SourceFrontierUnitsTable;
   "memoid.source_observations": SourceObservationsTable;
   "memoid.source_frontier_states": SourceFrontierStatesTable;
+  "memoid.evidence_references": EvidenceReferencesTable;
+  "memoid.source_ingestion_dispositions": SourceIngestionDispositionsTable;
   "memoid.candidate_frontier_states": CandidateFrontierStatesTable;
   "memoid.candidate_submissions": CandidateSubmissionsTable;
   "memoid.candidate_assertions": CandidateAssertionsTable;
