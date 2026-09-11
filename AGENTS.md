@@ -7,6 +7,7 @@ Before implementing or merging any product vertical, verify explicit authorizati
 - Architecture and dependency boundaries: `docs/architecture/foundation.md`
 - Stage 10A domain/schema inventory: `docs/architecture/domain-kernel-schema.md`
 - Stage 10F ingestion/evidence inventory: `docs/architecture/ingestion-evidence.md`
+- Stage 10G Source Authority inventory: `docs/architecture/source-authority.md`
 - Consequential decisions and status: `docs/decisions/README.md`
 - Security boundaries and tests: `docs/security/foundation.md`
 - Provider boundaries: `docs/integrations/provider-boundaries.md`

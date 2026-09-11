@@ -9,6 +9,8 @@
     "./authorization": "./src/authorization.ts",
     "./github-source": "./src/github-source.ts",
     "./identifiers": "./src/identifiers.ts",
+    "./source-authority": "./src/source-authority.ts",
+    "./source-authority": "./src/source-authority.ts",
     "./values": "./src/values.ts",
     "./workspace-project": "./src/workspace-project.ts"
   }

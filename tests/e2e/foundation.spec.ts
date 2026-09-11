@@ -44,6 +44,9 @@ test("protected errors do not disclose resource existence", async ({ page }) => 
 });
 
 test.describe("Stage 10D Project surfaces", () => {
+  // These flows intentionally share one seeded Account and session per browser project.
+  // Keep them ordered so concurrent session touches cannot turn browser evidence into a load test.
+  test.describe.configure({ mode: "serial" });
   test.skip(process.env.STAGE10D_E2E !== "1", "requires the isolated Stage 10D browser database");
 
   test.beforeEach(async ({ context }) => {
@@ -66,16 +69,19 @@ test.describe("Stage 10D Project surfaces", () => {
     await page.goto("/projects");
     await expect(page.getByRole("heading", { name: "Projects", level: 1 })).toBeVisible();
     await expect(page.getByRole("link", { name: /Browser proof project/ })).toBeVisible();
+    await expect(page).toHaveTitle("Memoid");
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
     await page.getByRole("link", { name: "New project" }).click();
     await expect(page.getByRole("heading", { name: "Create a project" })).toBeVisible();
+    await expect(page).toHaveTitle("Memoid");
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     const uniqueName = `Browser created ${test.info().project.name}`;
     await page.getByLabel("Project name").fill(uniqueName);
     await page.getByLabel("Description").fill("Created through the real lifecycle command.");
     await page.getByRole("button", { name: "Create project" }).click();
     await expect(page.getByRole("heading", { name: uniqueName })).toBeVisible();
+    await expect(page).toHaveTitle("Memoid");
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
     await page.getByRole("link", { name: "Project settings" }).click();
@@ -83,6 +89,7 @@ test.describe("Stage 10D Project surfaces", () => {
     await page.getByLabel("Description").fill("Updated through optimistic concurrency.");
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByText("Updated through optimistic concurrency.")).toBeVisible();
+    await expect(page).toHaveTitle("Memoid");
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   });
 
@@ -100,6 +107,24 @@ test.describe("Stage 10D Project surfaces", () => {
     await expect(
       page.getByText(/commits|branches|observations|reconciliation|context/i),
     ).toHaveCount(0);
+    await expect(page).toHaveTitle("Memoid");
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  });
+
+  test("Source Authority is Project-scoped, empty-safe, and step-up protected", async ({
+    page,
+  }) => {
+    await page.goto("/projects");
+    await page.getByRole("link", { name: /Browser proof project/ }).click();
+    await page.getByRole("link", { name: "Source Authority" }).click();
+    await expect(page.getByRole("heading", { name: "Scoped authority" })).toBeVisible();
+    await expect(page.getByText(/No Source Authority is assigned/i)).toBeVisible();
+    await expect(
+      page.getByText(/fail closed instead of selecting a global source of truth/i),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Verify identity" })).toBeVisible();
+    await expect(page.getByText(/instruction or application authority/i)).toBeVisible();
+    await expect(page).toHaveTitle("Memoid");
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   });
 });

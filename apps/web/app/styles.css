@@ -302,6 +302,10 @@ caption {
   color: var(--m-text-subtle);
   line-height: 1.6;
 }
+.project-panel > .security-notice,
+.project-panel > .security-warning {
+  color: var(--m-text);
+}
 .project-form {
   display: grid;
   gap: 20px;
@@ -314,7 +318,8 @@ caption {
   font-weight: 650;
 }
 .project-form input:not([type="radio"]),
-.project-form textarea {
+.project-form textarea,
+.project-form select {
   border: 1px solid var(--m-border);
   border-radius: 10px;
   background: transparent;
@@ -344,6 +349,65 @@ caption {
 .form-error {
   color: var(--m-danger);
   margin: 0;
+}
+.authority-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+.authority-card {
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-r-md);
+  padding: 18px;
+}
+.authority-card h3 {
+  margin: 6px 0;
+  text-transform: capitalize;
+}
+.authority-card p {
+  color: var(--m-text-subtle);
+  margin: 0;
+}
+.authority-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.authority-review {
+  width: 100%;
+  border: 1px solid var(--m-border);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+}
+
+.authority-review summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.authority-impact {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  border-radius: 0.65rem;
+  background: var(--m-canvas);
+}
+
+.authority-confirmation {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.authority-confirmation input {
+  width: auto;
+  margin-top: 0.25rem;
+}
+.authority-inline-form {
+  display: flex;
+  gap: 8px;
 }
 .project-facts {
   display: flex;

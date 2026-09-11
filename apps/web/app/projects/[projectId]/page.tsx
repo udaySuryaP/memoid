@@ -27,6 +27,9 @@ export default async function ProjectPage({
           <Link className="secondary-action" href={`/projects/${project.id}/sources/github`}>
             GitHub source
           </Link>
+          <Link className="secondary-action" href={`/projects/${project.id}/sources/authority`}>
+            Source Authority
+          </Link>
           <Link className="secondary-action" href={`/projects/${project.id}/settings`}>
             Project settings
           </Link>

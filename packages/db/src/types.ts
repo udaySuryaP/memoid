@@ -251,6 +251,54 @@ export interface SourceIngestionDispositionsTable extends ScopedRow {
   recorded_at: Timestamp;
 }
 
+export interface SourceAuthorityScopesTable extends ScopedRow {
+  id: Generated<string>;
+  authority_category: string;
+  authority_facet: string;
+  scope_kind: "PROJECT" | "PATH_PREFIX";
+  scope_key: string;
+  ref_selector: "ANY_REF" | "DEFAULT_BRANCH" | "EXACT_REF";
+  ref_key: string | null;
+  version: GeneratedInt8;
+  current_assignment_id: string | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface SourceAuthorityAssignmentsTable extends ScopedRow {
+  id: Generated<string>;
+  authority_scope_id: string;
+  assignment_version: Int8;
+  source_id: string;
+  source_default_ref_snapshot: string | null;
+  effective_at: RequiredTimestamp;
+  reason_key: string;
+  reason_note: string | null;
+  created_by_actor_id: string;
+  correlation_id: string;
+  causation_id: string | null;
+  idempotency_record_id: string;
+  supersedes_assignment_id: string | null;
+  created_at: Timestamp;
+}
+
+export interface SourceAuthorityAssignmentEndingsTable extends ScopedRow {
+  id: Generated<string>;
+  authority_scope_id: string;
+  ended_assignment_id: string;
+  ending_version: Int8;
+  ending_kind: "SUPERSEDED" | "REVOKED";
+  successor_assignment_id: string | null;
+  ended_at: RequiredTimestamp;
+  reason_key: string;
+  reason_note: string | null;
+  ended_by_actor_id: string;
+  correlation_id: string;
+  causation_id: string | null;
+  idempotency_record_id: string;
+  recorded_at: Timestamp;
+}
+
 export interface CandidateFrontierStatesTable extends ScopedRow {
   last_accepted_sequence: GeneratedInt8;
   reconciled_through_sequence: GeneratedInt8;
@@ -529,6 +577,9 @@ export interface MemoidDatabase {
   "memoid.source_frontier_states": SourceFrontierStatesTable;
   "memoid.evidence_references": EvidenceReferencesTable;
   "memoid.source_ingestion_dispositions": SourceIngestionDispositionsTable;
+  "memoid.source_authority_scopes": SourceAuthorityScopesTable;
+  "memoid.source_authority_assignments": SourceAuthorityAssignmentsTable;
+  "memoid.source_authority_assignment_endings": SourceAuthorityAssignmentEndingsTable;
   "memoid.candidate_frontier_states": CandidateFrontierStatesTable;
   "memoid.candidate_submissions": CandidateSubmissionsTable;
   "memoid.candidate_assertions": CandidateAssertionsTable;
