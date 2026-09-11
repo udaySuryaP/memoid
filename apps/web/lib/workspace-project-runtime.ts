@@ -69,6 +69,7 @@ export async function workspaceProjectRuntime(
         sessionRevoked: false,
         roleAssignments: [{ role: "PERSONAL_WORKSPACE_OWNER", workspaceId: workspace.id }],
       },
+      freshAuthenticationSatisfied: session.fresh,
     };
     return {
       service: new WorkspaceProjectService(repository),

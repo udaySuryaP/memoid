@@ -12,6 +12,7 @@ export * from "./operation.js";
 export * from "./authorization.js";
 export * from "./receipts.js";
 export * from "./session.js";
+export * from "./source-authority.js";
 export * from "./trace.js";
 export * from "./values.js";
 export * from "./workspace-project.js";

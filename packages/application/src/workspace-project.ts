@@ -19,6 +19,7 @@ export interface WorkspaceProjectContext {
   readonly sessionCredentialHash: Uint8Array;
   readonly principal: AuthenticatedPrincipal;
   readonly actor: AuthorizationActor;
+  readonly freshAuthenticationSatisfied?: boolean;
 }
 
 export interface CreateProjectCommand {

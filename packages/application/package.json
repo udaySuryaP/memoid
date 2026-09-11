@@ -7,6 +7,8 @@
     ".": "./src/index.ts",
     "./github-source": "./src/github-source.ts",
     "./source-ingestion": "./src/source-ingestion.ts",
+    "./source-authority": "./src/source-authority.ts",
+    "./source-authority": "./src/source-authority.ts",
     "./workspace-project": "./src/workspace-project.ts"
   },
   "dependencies": {

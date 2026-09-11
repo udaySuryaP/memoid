@@ -6,6 +6,7 @@ import { stage10cIdentityAuthzRlsMigration } from "./004-stage10c-identity-authz
 import { stage10dWorkspaceProjectMigration } from "./005-stage10d-workspace-project.js";
 import { stage10eGitHubSourceProviderIdentityMigration } from "./006-stage10e-github-source-provider-identity.js";
 import { stage10fIngestionEvidenceMigration } from "./007-stage10f-ingestion-evidence.js";
+import { stage10gSourceAuthorityMigration } from "./008-stage10g-source-authority.js";
 
 export class MemoidMigrationProvider implements MigrationProvider {
   public async getMigrations(): Promise<Record<string, Migration>> {
@@ -17,6 +18,7 @@ export class MemoidMigrationProvider implements MigrationProvider {
       "005_stage10d_workspace_project": stage10dWorkspaceProjectMigration,
       "006_stage10e_github_source_provider_identity": stage10eGitHubSourceProviderIdentityMigration,
       "007_stage10f_ingestion_evidence": stage10fIngestionEvidenceMigration,
+      "008_stage10g_source_authority": stage10gSourceAuthorityMigration,
     };
   }
 }
