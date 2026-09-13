@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./context-record": "./src/context-record.ts",
     "./github-source": "./src/github-source.ts",
     "./source-ingestion": "./src/source-ingestion.ts",
     "./source-authority": "./src/source-authority.ts",

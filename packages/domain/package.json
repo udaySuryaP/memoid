@@ -7,9 +7,10 @@
     ".": "./src/index.ts",
     "./actor": "./src/actor.ts",
     "./authorization": "./src/authorization.ts",
+    "./context-identity": "./src/context-identity.ts",
+    "./context-record": "./src/context-record.ts",
     "./github-source": "./src/github-source.ts",
     "./identifiers": "./src/identifiers.ts",
-    "./source-authority": "./src/source-authority.ts",
     "./source-authority": "./src/source-authority.ts",
     "./values": "./src/values.ts",
     "./workspace-project": "./src/workspace-project.ts"
