@@ -245,8 +245,7 @@ async function functions(db: Kysely<unknown>): Promise<void> {
       session_row memoid.auth_sessions%rowtype; project_row memoid.projects%rowtype;
       actor_row memoid.actors%rowtype; identity_row memoid.context_identities%rowtype;
       current_row memoid.context_identity_current_records%rowtype;
-      evidence_row memoid.evidence_references%rowtype; authority_row memoid.source_authority_assignments%rowtype;
-      authority_scope_row memoid.source_authority_scopes%rowtype; frontier_row memoid.source_frontier_states%rowtype;
+      evidence_row memoid.evidence_references%rowtype; frontier_row memoid.source_frontier_states%rowtype;
       revision_id uuid; new_record_id uuid; new_identity_version bigint; new_record_version bigint;
       policy_version bigint; revision_sequence bigint; claim_row record; now_at timestamptz := clock_timestamp();
     begin
@@ -309,8 +308,7 @@ ${authenticatedMutationPrefix}
         select * into evidence_row from memoid.evidence_references where workspace_id=project_row.workspace_id
           and project_id=project_row.id and id=p_evidence_reference_id;
         if not found then raise exception 'INVALID_CONTEXT_EVIDENCE'; end if;
-        select a, s into authority_row, authority_scope_row
-          from memoid.source_authority_assignments a join memoid.source_authority_scopes s
+        perform 1 from memoid.source_authority_assignments a join memoid.source_authority_scopes s
             on s.workspace_id=a.workspace_id and s.project_id=a.project_id and s.id=a.authority_scope_id
           join memoid.github_source_connections g on g.workspace_id=a.workspace_id
             and g.project_id=a.project_id and g.source_id=a.source_id
@@ -357,7 +355,7 @@ ${authenticatedMutationPrefix}
           covered_observation_sequence,source_authority_assignment_id) values(project_row.workspace_id,
           project_row.id,new_record_id,identity_row.id,evidence_row.id,evidence_row.source_id,
           evidence_row.source_observation_id,evidence_row.frontier_unit_id,evidence_row.observation_sequence,
-          authority_row.id);
+          p_source_authority_assignment_id);
         insert into memoid.context_record_source_provenance(workspace_id,project_id,context_record_id,
           source_observation_id,relation_kind) values(project_row.workspace_id,project_row.id,new_record_id,
           evidence_row.source_observation_id,'SUPPORTS');
