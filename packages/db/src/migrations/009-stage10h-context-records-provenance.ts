@@ -368,9 +368,9 @@ ${authenticatedMutationPrefix}
           context_record_id,established_by_revision_id,established_at) values(project_row.workspace_id,
           project_row.id,identity_row.id,new_record_id,revision_id,now_at);
       else
-        update memoid.context_identity_current_records set context_record_id=new_record_id,
-          established_by_revision_id=revision_id,established_at=now_at where workspace_id=project_row.workspace_id
-          and project_id=project_row.id and context_identity_id=identity_row.id;
+        update memoid.context_identity_current_records as h set context_record_id=new_record_id,
+          established_by_revision_id=revision_id,established_at=now_at where h.workspace_id=project_row.workspace_id
+          and h.project_id=project_row.id and h.context_identity_id=identity_row.id;
         update memoid.context_identities set version=new_identity_version where id=identity_row.id;
       end if;
       insert into memoid.audit_events(workspace_id,project_id,actor_id,category,event_type,occurred_at,
