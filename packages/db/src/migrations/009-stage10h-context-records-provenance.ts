@@ -178,7 +178,7 @@ async function guards(db: Kysely<unknown>): Promise<void> {
           and project_id = record_project_id and context_record_id = record_id)
         and not exists (select 1 from memoid.context_record_source_provenance where workspace_id = record_workspace_id
           and project_id = record_project_id and context_record_id = record_id)
-      then raise exception 'reviewed Context Record requires explicit provenance'; end if;
+      then raise exception 'reviewed Context Record requires Candidate or Source provenance'; end if;
       return null;
     end $$`.execute(db);
 }
@@ -294,15 +294,15 @@ ${authenticatedMutationPrefix}
       else
         if identity_row.lifecycle_state <> 'ACTIVE' then raise exception 'CONTEXT_IDENTITY_ENDED'; end if;
         if identity_row.version <> p_expected_identity_version then raise exception 'STALE_CONTEXT_VERSION'; end if;
-        select * into current_row from memoid.context_identity_current_records where
-          workspace_id=project_row.workspace_id and project_id=project_row.id
-          and context_identity_id=identity_row.id for update;
+        select h.* into current_row from memoid.context_identity_current_records h where
+          h.workspace_id=project_row.workspace_id and h.project_id=project_row.id
+          and h.context_identity_id=identity_row.id for update;
         if not found or current_row.context_record_id is distinct from p_expected_current_record_id
           then raise exception 'STALE_CONTEXT_CURRENT_RECORD'; end if;
         new_identity_version := identity_row.version + 1;
-        select coalesce(max(record_version),0)+1 into new_record_version from memoid.context_record_origins
-          where workspace_id=project_row.workspace_id and project_id=project_row.id
-            and context_identity_id=identity_row.id;
+        select coalesce(max(o.record_version),0)+1 into new_record_version from memoid.context_record_origins o
+          where o.workspace_id=project_row.workspace_id and o.project_id=project_row.id
+            and o.context_identity_id=identity_row.id;
       end if;
       if p_origin_kind = 'SOURCE_EVIDENCE' then
         select * into evidence_row from memoid.evidence_references where workspace_id=project_row.workspace_id
@@ -429,9 +429,9 @@ ${authenticatedMutationPrefix}
       if not found then raise exception 'RESOURCE_NOT_FOUND'; end if;
       if identity_row.lifecycle_state<>'ACTIVE' then raise exception 'CONTEXT_IDENTITY_ENDED'; end if;
       if identity_row.version<>p_expected_identity_version then raise exception 'STALE_CONTEXT_VERSION'; end if;
-      select * into current_row from memoid.context_identity_current_records where
-        workspace_id=project_row.workspace_id and project_id=project_row.id
-        and context_identity_id=identity_row.id for update;
+      select h.* into current_row from memoid.context_identity_current_records h where
+        h.workspace_id=project_row.workspace_id and h.project_id=project_row.id
+        and h.context_identity_id=identity_row.id for update;
       if not found or current_row.context_record_id is distinct from p_expected_current_record_id
         then raise exception 'STALE_CONTEXT_CURRENT_RECORD'; end if;
       new_version:=identity_row.version+1;
