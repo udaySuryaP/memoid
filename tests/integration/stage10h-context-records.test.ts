@@ -60,6 +60,7 @@ suite("Stage 10H Context Records PostgreSQL", () => {
   let foreign: Fixture;
   let sourceSequence = 0;
   let authoritySequence = 0;
+  const sourcesByProject = new Map<string, SourceId>();
   const closables: Array<{ close(): Promise<void> }> = [];
 
   beforeAll(async () => {
@@ -80,6 +81,7 @@ suite("Stage 10H Context Records PostgreSQL", () => {
     await sql`truncate table memoid.accounts cascade`.execute(isolated.db);
     sourceSequence = 0;
     authoritySequence = 0;
+    sourcesByProject.clear();
     owner = await fixture("owner");
     foreign = await fixture("foreign");
   });
@@ -454,18 +456,22 @@ suite("Stage 10H Context Records PostgreSQL", () => {
     const repositoryPath = options.repositoryPath ?? "packages/domain/src/index.ts";
     const refKey = options.refKey ?? "refs/heads/main";
     const defaultBranch = options.defaultBranch ?? "main";
-    const sourceId = (
-      await sql<{ id: string }>`insert into memoid.sources(workspace_id,project_id,source_kind)
-      values(${f.workspaceId}::uuid,${f.projectId}::uuid,'GITHUB_REPOSITORY') returning id::text`.execute(
-        isolated.db,
-      )
-    ).rows[0]!.id as SourceId;
-    await sql`insert into memoid.github_source_connections(workspace_id,project_id,source_id,app_id,installation_id,
+    let sourceId = sourcesByProject.get(f.projectId);
+    if (!sourceId) {
+      sourceId = (
+        await sql<{ id: string }>`insert into memoid.sources(workspace_id,project_id,source_kind)
+        values(${f.workspaceId}::uuid,${f.projectId}::uuid,'GITHUB_REPOSITORY') returning id::text`.execute(
+          isolated.db,
+        )
+      ).rows[0]!.id as SourceId;
+      sourcesByProject.set(f.projectId, sourceId);
+      await sql`insert into memoid.github_source_connections(workspace_id,project_id,source_id,app_id,installation_id,
       account_id,repository_id,owner_login,repository_name,full_name,html_url,visibility,default_branch,connection_state,verified_at)
       values(${f.workspaceId}::uuid,${f.projectId}::uuid,${sourceId}::uuid,'1',${String(sourceSequence)},'3',${String(Date.now() + sourceSequence)},'owner',${`repo-${sourceSequence}`},
       ${`owner/repo-${sourceSequence}`},${`https://github.com/owner/repo-${sourceSequence}`},'PRIVATE',${defaultBranch},'ACTIVE',clock_timestamp())`.execute(
-      isolated.db,
-    );
+        isolated.db,
+      );
+    }
     const unit = (
       await sql<{
         id: string;
@@ -666,16 +672,18 @@ suite("Stage 10H Context Records PostgreSQL", () => {
     await setAuthority(owner, pathSource.sourceId, {
       scopeKind: "PATH_PREFIX",
       scopeKey: "packages/domain",
-      refSelector: "ANY_REF",
+      refSelector: "DEFAULT_BRANCH",
     });
-    await sql`update memoid.github_source_connections set connection_state='REPOSITORY_ACCESS_REMOVED'
+    await sql`update memoid.github_source_connections set default_branch='trunk'
       where source_id=${pathSource.sourceId}::uuid`.execute(isolated.db);
+    const revalidationEvidence = await createSourceEvidence(owner, {
+      repositoryPath: "packages/domain/src/context-record.ts",
+      refKey: "refs/heads/trunk",
+    });
     await expect(
       owner.service.put(
         owner.context,
-        sourcePut(owner, replacementSource.evidence, replacement, "degraded-no-fallback", {
-          scope: "packages/domain/src/context-record.ts",
-        }),
+        sourcePut(owner, revalidationEvidence.evidence, replacement, "degraded-no-fallback"),
       ),
     ).rejects.toThrow("CONTEXT_AUTHORITY_UNAVAILABLE");
   });
