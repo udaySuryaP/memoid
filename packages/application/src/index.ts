@@ -4,6 +4,7 @@ export * from "./workspace-project.js";
 export * from "./github-source.js";
 export * from "./source-ingestion.js";
 export * from "./source-authority.js";
+export * from "./context-record.js";
 
 export interface AuthenticatedIdentity {
   readonly providerKey: string;

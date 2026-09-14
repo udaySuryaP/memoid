@@ -2,6 +2,7 @@ export * from "./candidate.js";
 export * from "./actor.js";
 export * from "./audit.js";
 export * from "./context-identity.js";
+export * from "./context-record.js";
 export * from "./frontiers.js";
 export * from "./github-source.js";
 export * from "./ingestion.js";

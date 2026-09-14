@@ -10,6 +10,7 @@ export const CAPABILITIES = [
   "PROJECT_SUBMIT_CANDIDATE",
   "PROJECT_CONTROL",
   "PROJECT_MANAGE_SOURCE_AUTHORITY",
+  "PROJECT_MANAGE_CONTEXT",
   "AUDIT_READ",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];

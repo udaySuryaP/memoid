@@ -7,6 +7,7 @@ import { stage10dWorkspaceProjectMigration } from "./005-stage10d-workspace-proj
 import { stage10eGitHubSourceProviderIdentityMigration } from "./006-stage10e-github-source-provider-identity.js";
 import { stage10fIngestionEvidenceMigration } from "./007-stage10f-ingestion-evidence.js";
 import { stage10gSourceAuthorityMigration } from "./008-stage10g-source-authority.js";
+import { stage10hContextRecordsProvenanceMigration } from "./009-stage10h-context-records-provenance.js";
 
 export class MemoidMigrationProvider implements MigrationProvider {
   public async getMigrations(): Promise<Record<string, Migration>> {
@@ -19,6 +20,7 @@ export class MemoidMigrationProvider implements MigrationProvider {
       "006_stage10e_github_source_provider_identity": stage10eGitHubSourceProviderIdentityMigration,
       "007_stage10f_ingestion_evidence": stage10fIngestionEvidenceMigration,
       "008_stage10g_source_authority": stage10gSourceAuthorityMigration,
+      "009_stage10h_context_records_provenance": stage10hContextRecordsProvenanceMigration,
     };
   }
 }
