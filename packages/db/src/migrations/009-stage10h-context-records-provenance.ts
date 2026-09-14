@@ -22,6 +22,7 @@ async function extendContextFoundation(db: Kysely<unknown>): Promise<void> {
     context_record_id uuid not null,
     context_identity_id uuid not null,
     origin_kind varchar(24) not null,
+    identity_version bigint not null,
     record_version bigint not null,
     supersedes_context_record_id uuid,
     created_by_actor_id uuid not null,
@@ -43,6 +44,7 @@ async function extendContextFoundation(db: Kysely<unknown>): Promise<void> {
       references memoid.idempotency_records(workspace_id, project_id, id),
     constraint context_record_origins_kind check
       (origin_kind in ('USER_NATIVE','SOURCE_EVIDENCE','MEMOID_OPERATION')),
+    constraint context_record_origins_identity_version_positive check (identity_version > 0),
     constraint context_record_origins_version check (record_version > 0),
     constraint context_record_origins_identity_version unique
       (workspace_id, project_id, context_identity_id, record_version),
@@ -247,7 +249,8 @@ async function functions(db: Kysely<unknown>): Promise<void> {
       current_row memoid.context_identity_current_records%rowtype;
       evidence_row memoid.evidence_references%rowtype; frontier_row memoid.source_frontier_states%rowtype;
       revision_id uuid; new_record_id uuid; new_identity_version bigint; new_record_version bigint;
-      policy_version bigint; revision_sequence bigint; claim_row record; now_at timestamptz := clock_timestamp();
+      policy_version bigint; revision_sequence bigint; claim_row record; authority_winner record;
+      authority_winner_count bigint; now_at timestamptz := clock_timestamp();
     begin
       if octet_length(p_session_token_hash) <> 32 or octet_length(p_idempotency_key_hash) <> 32
         or octet_length(p_request_fingerprint) <> 32 or not memoid.is_uuid_v7(p_correlation_id)
@@ -271,10 +274,9 @@ ${authenticatedMutationPrefix}
       if claim_row.claim_outcome = 'IN_PROGRESS' then raise exception 'IDEMPOTENCY_IN_PROGRESS'; end if;
       if claim_row.claim_outcome = 'TERMINAL_FAILURE' then raise exception 'IDEMPOTENCY_TERMINAL_FAILURE'; end if;
       if claim_row.claim_outcome = 'REPLAY' then
-        select o.context_identity_id, o.context_record_id, i.version, o.record_version
+        select o.context_identity_id, o.context_record_id, o.identity_version, o.record_version
           into context_identity_id, context_record_id, identity_version, record_version
-          from memoid.context_record_origins o join memoid.context_identities i
-            on i.workspace_id=o.workspace_id and i.project_id=o.project_id and i.id=o.context_identity_id
+          from memoid.context_record_origins o
           where o.workspace_id=project_row.workspace_id and o.project_id=project_row.id
             and o.context_record_id=claim_row.stable_result_reference::uuid;
         if not found then raise exception 'RESOURCE_NOT_FOUND'; end if;
@@ -308,21 +310,63 @@ ${authenticatedMutationPrefix}
         select * into evidence_row from memoid.evidence_references where workspace_id=project_row.workspace_id
           and project_id=project_row.id and id=p_evidence_reference_id;
         if not found then raise exception 'INVALID_CONTEXT_EVIDENCE'; end if;
-        perform 1 from memoid.source_authority_assignments a join memoid.source_authority_scopes s
-            on s.workspace_id=a.workspace_id and s.project_id=a.project_id and s.id=a.authority_scope_id
-          join memoid.github_source_connections g on g.workspace_id=a.workspace_id
+        with candidates as (
+          select a.id, a.source_id, a.source_default_ref_snapshot, s.ref_selector,
+            case s.ref_selector when 'EXACT_REF' then 2 when 'DEFAULT_BRANCH' then 1 else 0 end ref_rank,
+            case when s.scope_kind='PROJECT' then 0
+              else array_length(string_to_array(s.scope_key,'/'),1) end scope_rank,
+            g.connection_state, g.default_branch,
+            exists (select 1 from memoid.source_observations observed
+              join memoid.source_frontier_units observed_unit
+                on observed_unit.workspace_id=observed.workspace_id
+                and observed_unit.project_id=observed.project_id
+                and observed_unit.id=observed.frontier_unit_id
+              where observed.workspace_id=a.workspace_id and observed.project_id=a.project_id
+                and observed_unit.source_id=a.source_id) source_observed,
+            exists (select 1 from memoid.source_frontier_states source_state
+              join memoid.source_frontier_units source_unit
+                on source_unit.workspace_id=source_state.workspace_id
+                and source_unit.project_id=source_state.project_id
+                and source_unit.id=source_state.frontier_unit_id
+              where source_state.workspace_id=a.workspace_id and source_state.project_id=a.project_id
+                and source_unit.source_id=a.source_id
+                and coalesce(source_state.desired_sequence,0)>coalesce(source_state.ingested_sequence,0)) source_behind
+          from memoid.source_authority_scopes s
+          join memoid.source_authority_assignments a on a.workspace_id=s.workspace_id
+            and a.project_id=s.project_id and a.authority_scope_id=s.id and a.id=s.current_assignment_id
+          left join memoid.github_source_connections g on g.workspace_id=a.workspace_id
             and g.project_id=a.project_id and g.source_id=a.source_id
-          join memoid.source_frontier_units u on u.workspace_id=evidence_row.workspace_id
-            and u.project_id=evidence_row.project_id and u.id=evidence_row.frontier_unit_id
-          where a.workspace_id=project_row.workspace_id and a.project_id=project_row.id
-            and a.id=p_source_authority_assignment_id and a.source_id=evidence_row.source_id
-            and s.current_assignment_id=a.id and g.connection_state='ACTIVE'
+          join memoid.source_frontier_units target_unit on target_unit.workspace_id=evidence_row.workspace_id
+            and target_unit.project_id=evidence_row.project_id and target_unit.id=evidence_row.frontier_unit_id
+          join memoid.github_source_connections target_connection
+            on target_connection.workspace_id=evidence_row.workspace_id
+            and target_connection.project_id=evidence_row.project_id
+            and target_connection.source_id=evidence_row.source_id
+          where s.workspace_id=project_row.workspace_id and s.project_id=project_row.id
+            and lower(s.authority_category || ':' || s.authority_facet)=p_facet_key
             and (s.scope_kind='PROJECT' or evidence_row.repository_path=s.scope_key
               or evidence_row.repository_path like s.scope_key || '/%')
-            and (s.ref_selector='ANY_REF' or (s.ref_selector='EXACT_REF' and s.ref_key=u.ref_key)
-              or (s.ref_selector='DEFAULT_BRANCH' and a.source_default_ref_snapshot=u.ref_key
-                and a.source_default_ref_snapshot='refs/heads/' || g.default_branch));
-        if not found then raise exception 'CONTEXT_AUTHORITY_UNAVAILABLE'; end if;
+            and (s.ref_selector='ANY_REF'
+              or (s.ref_selector='EXACT_REF' and s.ref_key=target_unit.ref_key)
+              or (s.ref_selector='DEFAULT_BRANCH'
+                and target_unit.ref_key='refs/heads/' || target_connection.default_branch))
+        ), ranked as (
+          select candidates.*, dense_rank() over (order by ref_rank desc,scope_rank desc) winner_rank
+          from candidates
+        )
+        select *, count(*) over () into authority_winner from ranked where winner_rank=1 limit 1;
+        if not found then raise exception 'CONTEXT_AUTHORITY_MISSING'; end if;
+        authority_winner_count := authority_winner.count;
+        if authority_winner_count <> 1 then raise exception 'CONTEXT_AUTHORITY_AMBIGUOUS'; end if;
+        if authority_winner.connection_state is distinct from 'ACTIVE'
+          or not authority_winner.source_observed or authority_winner.source_behind
+          or (authority_winner.ref_selector='DEFAULT_BRANCH'
+            and authority_winner.source_default_ref_snapshot is distinct from
+              'refs/heads/' || authority_winner.default_branch)
+        then raise exception 'CONTEXT_AUTHORITY_UNAVAILABLE'; end if;
+        if authority_winner.id is distinct from p_source_authority_assignment_id
+          or authority_winner.source_id is distinct from evidence_row.source_id
+        then raise exception 'CONTEXT_AUTHORITY_NOT_WINNER'; end if;
         select * into frontier_row from memoid.source_frontier_states where
           workspace_id=evidence_row.workspace_id and project_id=evidence_row.project_id
           and frontier_unit_id=evidence_row.frontier_unit_id;
@@ -345,9 +389,9 @@ ${authenticatedMutationPrefix}
         identity_row.id,revision_id,p_assertion_payload,sha256(convert_to(p_assertion_payload::text,'UTF8')),now_at)
         returning id into new_record_id;
       insert into memoid.context_record_origins(workspace_id,project_id,context_record_id,context_identity_id,
-        origin_kind,record_version,supersedes_context_record_id,created_by_actor_id,idempotency_record_id,
+        origin_kind,identity_version,record_version,supersedes_context_record_id,created_by_actor_id,idempotency_record_id,
         correlation_id,causation_id) values(project_row.workspace_id,project_row.id,new_record_id,identity_row.id,
-        p_origin_kind,new_record_version,current_row.context_record_id,actor_row.id,claim_row.idempotency_record_id,
+        p_origin_kind,new_identity_version,new_record_version,current_row.context_record_id,actor_row.id,claim_row.idempotency_record_id,
         p_correlation_id,p_causation_id);
       if p_origin_kind='SOURCE_EVIDENCE' then
         insert into memoid.context_record_evidence_provenance(workspace_id,project_id,context_record_id,
@@ -487,6 +531,15 @@ export const stage10hContextRecordsProvenanceMigration: Migration = {
   },
   async down(db) {
     await sql`set local role memoid_owner`.execute(db);
+    await sql`do $$
+      begin
+        if exists (select 1 from memoid.context_record_origins)
+          or exists (select 1 from memoid.context_record_evidence_provenance)
+          or exists (select 1 from memoid.context_identity_endings)
+        then
+          raise exception 'STAGE10H_ROLLBACK_REFUSED_POPULATED_CONTEXT_HISTORY';
+        end if;
+      end $$`.execute(db);
     await sql`drop function if exists memoid.end_context_identity(bytea,uuid,uuid,bigint,uuid,varchar,varchar,bytea,bytea,uuid,uuid)`.execute(
       db,
     );

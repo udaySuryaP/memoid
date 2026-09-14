@@ -35,6 +35,29 @@ describe("Stage 10H Context domain", () => {
       contextMutationInput(
         { subject: "project", scope: "implementation", facet: "code", predicate: "runtime" },
         { value: "Node" },
+        "SOURCE_EVIDENCE",
+        "01900000-0000-7000-8000-000000000001" as never,
+        "01900000-0000-7000-8000-000000000002" as never,
+      ),
+    ).toThrow("authority category/facet");
+    expect(
+      contextMutationInput(
+        {
+          subject: "project",
+          scope: "implementation",
+          facet: "implementation_state:code",
+          predicate: "runtime",
+        },
+        { value: "Node" },
+        "SOURCE_EVIDENCE",
+        "01900000-0000-7000-8000-000000000001" as never,
+        "01900000-0000-7000-8000-000000000002" as never,
+      ).identity.facet,
+    ).toBe("implementation_state:code");
+    expect(() =>
+      contextMutationInput(
+        { subject: "project", scope: "implementation", facet: "code", predicate: "runtime" },
+        { value: "Node" },
         "MEMOID_OPERATION",
       ),
     ).toThrow("later trusted worker boundary");

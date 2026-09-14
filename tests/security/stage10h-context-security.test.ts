@@ -37,12 +37,26 @@ describe("Stage 10H Context security boundary", () => {
     expect(migration).toContain("actor_reference = 'account:' || session_row.account_id::text");
   });
 
-  it("does not persist raw Source content and requires exact evidence plus authority", async () => {
+  it("does not persist raw Source content and requires the canonical authority winner", async () => {
     const migration = await readFile(migrationPath, "utf8");
     expect(migration).not.toMatch(/raw_(?:content|repository|payload)|repository_blob/iu);
     expect(migration).toContain("p_evidence_reference_id is not null");
     expect(migration).toContain("p_source_authority_assignment_id is not null");
-    expect(migration).toContain("s.current_assignment_id=a.id");
-    expect(migration).toContain("g.connection_state='ACTIVE'");
+    expect(migration).toContain("a.id=s.current_assignment_id");
+    expect(migration).toContain("dense_rank() over (order by ref_rank desc,scope_rank desc)");
+    expect(migration).toContain("authority_winner_count <> 1");
+    expect(migration).toContain("CONTEXT_AUTHORITY_NOT_WINNER");
+    expect(migration).toContain("authority_winner.connection_state is distinct from 'ACTIVE'");
+  });
+
+  it("refuses populated rollback before any destructive migration action", async () => {
+    const migration = await readFile(migrationPath, "utf8");
+    const refusal = migration.indexOf("STAGE10H_ROLLBACK_REFUSED_POPULATED_CONTEXT_HISTORY");
+    const firstDrop = migration.indexOf(
+      "drop function if exists memoid.end_context_identity",
+      migration.indexOf("async down"),
+    );
+    expect(refusal).toBeGreaterThan(migration.indexOf("async down"));
+    expect(refusal).toBeLessThan(firstDrop);
   });
 });

@@ -5,6 +5,7 @@ import type {
   SourceAuthorityAssignmentId,
 } from "./identifiers.js";
 import { contextIdentity, type ContextIdentityComponents } from "./context-identity.js";
+import { parseAuthorityCategoryFacet } from "./source-authority.js";
 
 export const CONTEXT_ORIGIN_KINDS = ["USER_NATIVE", "SOURCE_EVIDENCE", "MEMOID_OPERATION"] as const;
 export type ContextOriginKind = (typeof CONTEXT_ORIGIN_KINDS)[number];
@@ -78,6 +79,7 @@ export function contextMutationInput(
   }
   if (originKind === "MEMOID_OPERATION")
     throw new Error("MEMOID_OPERATION creation is reserved for a later trusted worker boundary");
+  if (sourceBacked) parseAuthorityCategoryFacet(normalizedIdentity.facet.toUpperCase());
   return {
     identity: normalizedIdentity,
     payload: normalizedPayload,

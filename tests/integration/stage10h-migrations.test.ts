@@ -45,7 +45,7 @@ suite("Stage 10H migration 009", () => {
     expect(privileges).toEqual({ appExecute: true, appWrite: false, authExecute: false });
   });
 
-  it("round-trips exactly to 008 and reapplies", async () => {
+  it("round-trips an empty database through 008 -> 009 -> 008 -> 009", async () => {
     const down = await createMigrator(isolated.db).migrateDown();
     expect(down.error).toBeUndefined();
     expect(
