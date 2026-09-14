@@ -61,6 +61,7 @@ suite("Stage 10H Context Records PostgreSQL", () => {
   let sourceSequence = 0;
   let authoritySequence = 0;
   const sourcesByProject = new Map<string, SourceId>();
+  const frontiersByProjectRef = new Map<string, { unitId: string; observationSequence: number }>();
   const closables: Array<{ close(): Promise<void> }> = [];
 
   beforeAll(async () => {
@@ -82,6 +83,7 @@ suite("Stage 10H Context Records PostgreSQL", () => {
     sourceSequence = 0;
     authoritySequence = 0;
     sourcesByProject.clear();
+    frontiersByProjectRef.clear();
     owner = await fixture("owner");
     foreign = await fixture("foreign");
   });
@@ -472,34 +474,51 @@ suite("Stage 10H Context Records PostgreSQL", () => {
         isolated.db,
       );
     }
-    const unit = (
-      await sql<{
-        id: string;
-      }>`insert into memoid.source_frontier_units(workspace_id,project_id,source_id,scope_key,ref_key)
-      values(${f.workspaceId}::uuid,${f.projectId}::uuid,${sourceId}::uuid,'repository',${refKey}) returning id::text`.execute(
-        isolated.db,
-      )
-    ).rows[0]!.id;
+    const frontierKey = `${f.projectId}:${refKey}`;
+    let frontier = frontiersByProjectRef.get(frontierKey);
+    if (!frontier) {
+      const unitId = (
+        await sql<{
+          id: string;
+        }>`insert into memoid.source_frontier_units(workspace_id,project_id,source_id,scope_key,ref_key)
+        values(${f.workspaceId}::uuid,${f.projectId}::uuid,${sourceId}::uuid,'repository',${refKey}) returning id::text`.execute(
+          isolated.db,
+        )
+      ).rows[0]!.id;
+      frontier = { unitId, observationSequence: 0 };
+      frontiersByProjectRef.set(frontierKey, frontier);
+    }
+    frontier.observationSequence += 1;
+    const unit = frontier.unitId;
+    const observationSequence = frontier.observationSequence;
+    const externalRevision = sourceSequence.toString(16).padStart(40, "a").slice(-40);
     const observation = (
       await sql<{
         id: string;
       }>`insert into memoid.source_observations(workspace_id,project_id,frontier_unit_id,
       observation_sequence,external_revision,observed_at) values(${f.workspaceId}::uuid,${f.projectId}::uuid,${unit}::uuid,
-      1,${sourceSequence.toString(16).padStart(40, "a").slice(-40)},clock_timestamp()) returning id::text`.execute(
+      ${observationSequence},${externalRevision},clock_timestamp()) returning id::text`.execute(
         isolated.db,
       )
     ).rows[0]!.id;
-    await sql`insert into memoid.source_frontier_states(workspace_id,project_id,frontier_unit_id,observed_sequence,
-      desired_sequence,ingested_sequence) values(${f.workspaceId}::uuid,${f.projectId}::uuid,${unit}::uuid,1,1,1)`.execute(
-      isolated.db,
-    );
+    if (observationSequence === 1) {
+      await sql`insert into memoid.source_frontier_states(workspace_id,project_id,frontier_unit_id,observed_sequence,
+        desired_sequence,ingested_sequence) values(${f.workspaceId}::uuid,${f.projectId}::uuid,${unit}::uuid,1,1,1)`.execute(
+        isolated.db,
+      );
+    } else {
+      await sql`update memoid.source_frontier_states set observed_sequence=${observationSequence},
+        desired_sequence=${observationSequence},ingested_sequence=${observationSequence}
+        where workspace_id=${f.workspaceId}::uuid and project_id=${f.projectId}::uuid
+          and frontier_unit_id=${unit}::uuid`.execute(isolated.db);
+    }
     const evidence = (
       await sql<{
         id: string;
       }>`insert into memoid.evidence_references(workspace_id,project_id,source_id,
       frontier_unit_id,source_observation_id,observation_sequence,evidence_kind,repository_revision,repository_path,
       provider_object_id,byte_size,content_sha256) values(${f.workspaceId}::uuid,${f.projectId}::uuid,${sourceId}::uuid,
-      ${unit}::uuid,${observation}::uuid,1,'FILE',${"a".repeat(40)},${repositoryPath},${`${"a".repeat(39)}${sourceSequence}`.slice(-40)},
+      ${unit}::uuid,${observation}::uuid,${observationSequence},'FILE',${externalRevision},${repositoryPath},${`${"a".repeat(39)}${sourceSequence}`.slice(-40)},
       42,${Buffer.alloc(32, sourceSequence)}::bytea) returning id::text`.execute(isolated.db)
     ).rows[0]!.id;
     return { sourceId, unit, evidence: evidence as EvidenceReferenceId };
