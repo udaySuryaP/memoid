@@ -16,10 +16,10 @@
     "@memoid/db": "workspace:*",
     "@memoid/observability": "workspace:*",
     "@memoid/security": "workspace:*",
-    "fastify": "5.12.1"
+    "fastify": "5.12.4"
   },
   "devDependencies": {
-    "tsx": "4.23.12",
+    "tsx": "4.23.13",
     "typescript": "6.0.3"
   }
 }
