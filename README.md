@@ -1,6 +1,17 @@
 # Memoid
 
-Memoid is a source-aware context control plane for AI-native software projects. Its primary founder-directed product loop is durable cross-AI Project-context continuity: an authorized client resumes with a task-specific qualified Context Pack, the user works, an explicit checkpoint submits meaningful Candidate Evidence, Memoid reconciles it into Working Context, and the Project review policy controls whether eligible changes become Reviewed Durable Context. GitHub is complementary authoritative Source evidence for applicable implementation facts, not the primary product loop.
+Memoid is a source-aware context control plane for AI-native software projects. It is designed to preserve qualified, task-specific project context across AI tools without treating a model's output as automatically trusted project truth.
+
+## Product loop
+
+1. An authorized client resumes with a qualified Context Pack for the current task.
+2. The user works and explicitly checkpoints meaningful Candidate Evidence.
+3. Memoid reconciles eligible evidence into Working Context.
+4. The Project review policy controls whether eligible changes become Reviewed Durable Context.
+
+This durable cross-AI Project-context continuity loop is founder-directed. GitHub is complementary authoritative Source evidence for applicable implementation facts, not the primary product loop.
+
+## Current status
 
 Memoid is **not market-validated**. Stage 2 concluded **DO NOT BUILD / KILL** because the tested competent repository-native baseline did not justify an additional maintained context layer. Full development continues only because the founder issued a locked **BUILD FULL PRODUCT** override. That execution decision does not reverse or soften the evidence.
 
