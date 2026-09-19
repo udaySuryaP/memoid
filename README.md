@@ -1,6 +1,12 @@
 # Memoid
 
-Memoid is a source-aware context control plane for AI-native software projects. It is designed to preserve qualified, task-specific project context across AI tools without treating a model's output as automatically trusted project truth.
+Memoid is a source-aware context control plane for durable, review-governed continuity across AI development tools. It carries qualified project context between sessions and clients without allowing model-generated claims to silently become project truth.
+
+## Why it exists
+
+AI-assisted development is often fragmented across tools, sessions, and repositories. Chat history can preserve a transcript, but it does not reliably separate authoritative source evidence, proposed changes, in-progress working context, and reviewed knowledge that should guide future work.
+
+Memoid makes those trust boundaries explicit. It combines user checkpoints, repository evidence, provenance, reconciliation, and project-level review policy so future AI clients can resume from context that is both useful and inspectable.
 
 ## Product loop
 
@@ -10,6 +16,14 @@ Memoid is a source-aware context control plane for AI-native software projects. 
 4. The Project review policy controls whether eligible changes become Reviewed Durable Context.
 
 This durable cross-AI Project-context continuity loop is founder-directed. GitHub is complementary authoritative Source evidence for applicable implementation facts, not the primary product loop.
+
+## Architecture at a glance
+
+- TypeScript modular monolith managed with pnpm and Turborepo.
+- Next.js web application, Fastify API/MCP boundary, and a separate worker process around one Domain/Application Core.
+- PostgreSQL for durable state and full-text retrieval, with Kysely, transaction-scoped row-level security, and pg-boss for background work.
+- WorkOS-based identity and session boundaries, plus a read-only GitHub App integration for repository evidence.
+- Explicit provenance and review controls across Source Observation, Candidate Submission, Working Context, and Reviewed Durable Context.
 
 ## Current status
 
