@@ -37,7 +37,11 @@ export const apiConfigSchema = base.extend({
   GITHUB_WEBHOOK_SECRET: z.string().min(32).optional(),
   GITHUB_WEBHOOK_SECRET_PREVIOUS: z.string().min(32).optional(),
 });
-export const workerConfigSchema = base.extend({ DATABASE_URL: z.string().startsWith("postgres") });
+export const workerConfigSchema = base.extend({
+  DATABASE_URL: z.string().startsWith("postgres"),
+  GITHUB_APP_ID: z.string().regex(/^[1-9][0-9]{0,39}$/),
+  GITHUB_APP_PRIVATE_KEY: z.string().includes("BEGIN RSA PRIVATE KEY"),
+});
 export type WebConfig = z.infer<typeof webConfigSchema>;
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
 export type WorkerConfig = z.infer<typeof workerConfigSchema>;

@@ -1,6 +1,6 @@
 # Repository governance
 
-Repository: private, personal-account-owned `udaySuryaP/memoid`.
+Repository: public, personal-account-owned `udaySuryaP/memoid`.
 
 ## Durable contract versus execution authorization
 
@@ -10,13 +10,19 @@ Current execution authorization is owned by `00 - MEMOID HQ` / canonical project
 
 ## Current limitation
 
-The live GitHub repository rulesets API previously returned HTTP 403 with: `Upgrade to GitHub Pro or make this repository public to enable this feature.` The repository remains private and personal-account-owned unless current HQ/project state records a later change.
+The repository is public. Dependency review therefore runs on every pull
+request. The repository still has no enforced branch protection/ruleset, so the
+founder-only governance control below remains mandatory until repository-native
+enforcement is enabled.
 
 GitHub availability creates three distinct boundaries that must be freshly reverified if plan/ownership changes:
 
-- GitHub Pro can make branch protection, repository rulesets, and private-repository CODEOWNERS behavior available for a personal repository.
-- CodeQL/code scanning for a private repository requires an eligible organization/licensing configuration; the repository retains a compatible SAST fallback while unavailable.
-- Dependency review for a private repository likewise depends on eligible GitHub security capability. The workflow remains capability-gated so an unavailable API cannot make every PR fail.
+- Public-repository branch protection/rulesets should be enabled with required
+  CI and Security checks when HQ authorizes that repository setting change.
+- CodeQL remains a preferred complementary scanner; the repository retains its
+  compatible SAST gate regardless of CodeQL availability.
+- Dependency review is enabled for every pull request and must remain a required
+  security signal.
 
 References:
 
@@ -36,10 +42,10 @@ The PR must remain unmerged until required CI/security checks are green and HQ e
 
 Repository contract synchronization stages may modify only the scope their workstream authorizes. Product schema, migrations, authentication, GitHub ingestion runtime, Candidate Submission or Working Context runtime behavior, reconciliation, model adapters, MCP product tools, Manual/Automatic runtime behavior, and product UI require their owning implementation vertical plus explicit current HQ authorization.
 
-Before broader collaboration or public-production operations, enable enforceable branch protection/rulesets with required CI/security checks and an independent review model. Re-evaluate CodeQL and dependency review if repository ownership or licensed capabilities change. Do not weaken the repository-compatible SAST fallback while CodeQL is unavailable.
+Before broader collaboration or public-production operations, enable enforceable branch protection/rulesets with required CI/security checks and an independent review model. Re-evaluate CodeQL if repository ownership or licensed capabilities change. Do not weaken the repository-compatible SAST fallback.
 
 ## Security-analysis rule
 
 **SAST REQUIRED. CodeQL preferred where repository/plan supports it.**
 
-The current compatible layer is the pinned `eslint-plugin-security` scanner exposed through `pnpm sast`. It runs a curated error-level JavaScript/TypeScript ruleset separately from ordinary lint, avoids high-noise generic object-injection and dynamic-filename hotspot rules, and fails the Security workflow on findings or scanner errors. CodeQL should replace or complement this fallback when private-repository code scanning becomes available.
+The current compatible layer is the pinned `eslint-plugin-security` scanner exposed through `pnpm sast`. It runs a curated error-level JavaScript/TypeScript ruleset separately from ordinary lint, avoids high-noise generic object-injection and dynamic-filename hotspot rules, and fails the Security workflow on findings or scanner errors. CodeQL should complement this fallback when enabled.

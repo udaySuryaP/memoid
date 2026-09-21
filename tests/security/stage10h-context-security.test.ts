@@ -5,6 +5,11 @@ const migrationPath = new URL(
   "../../packages/db/src/migrations/009-stage10h-context-records-provenance.ts",
   import.meta.url,
 );
+const correctionMigrationPath = new URL(
+  "../../packages/db/src/migrations/010-audit1a-integrity-corrections.ts",
+  import.meta.url,
+);
+const adapterPath = new URL("../../packages/adapters/src/context-record.ts", import.meta.url);
 const applicationPath = new URL(
   "../../packages/application/src/context-record.ts",
   import.meta.url,
@@ -58,5 +63,34 @@ describe("Stage 10H Context security boundary", () => {
     );
     expect(refusal).toBeGreaterThan(migration.indexOf("async down"));
     expect(refusal).toBeLessThan(firstDrop);
+  });
+
+  it("uses one canonical authority resolver for corrected writes and read-time currentness", async () => {
+    const [migration, adapter] = await Promise.all([
+      readFile(correctionMigrationPath, "utf8"),
+      readFile(adapterPath, "utf8"),
+    ]);
+    expect(migration).toContain("create function memoid.resolve_effective_source_authority");
+    expect(migration).toContain("create function memoid.put_context_record_v2");
+    expect(migration).toContain("from memoid.resolve_effective_source_authority(");
+    expect(adapter).toContain("left join lateral memoid.resolve_effective_source_authority(");
+    expect(adapter).toContain("from memoid.put_context_record_v2(");
+    expect(migration).toContain("p_source_authority_assignment_id");
+    expect(migration).not.toMatch(/raw_(?:content|repository|payload)|repository_blob/iu);
+  });
+
+  it("keeps corrected definer functions on fixed paths with narrow runtime grants", async () => {
+    const migration = await readFile(correctionMigrationPath, "utf8");
+    expect(migration).toContain("language plpgsql stable set search_path = pg_catalog, memoid");
+    for (const name of ["list_source_ingestion_runtime_targets", "put_context_record_v2"]) {
+      const start = migration.indexOf(`create function memoid.${name}`);
+      expect(start).toBeGreaterThan(-1);
+      expect(migration.slice(start, start + 3_000)).toContain(
+        "security definer set search_path = pg_catalog, memoid",
+      );
+    }
+    expect(migration).toContain("session_user <> 'memoid_app'");
+    expect(migration).toMatch(/from public,\s*memoid_app,\s*memoid_auth,\s*memoid_provider/u);
+    expect(migration).toContain("grant execute on function");
   });
 });

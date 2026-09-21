@@ -14,6 +14,7 @@
     "@memoid/config": "workspace:*",
     "@memoid/contracts": "workspace:*",
     "@memoid/db": "workspace:*",
+    "@memoid/jobs": "workspace:*",
     "@memoid/observability": "workspace:*",
     "@memoid/security": "workspace:*",
     "fastify": "5.12.1"

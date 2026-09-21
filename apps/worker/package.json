@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@memoid/adapters": "workspace:*",
+    "@memoid/application": "workspace:*",
     "@memoid/config": "workspace:*",
+    "@memoid/domain": "workspace:*",
     "@memoid/jobs": "workspace:*",
     "@memoid/observability": "workspace:*"
   },

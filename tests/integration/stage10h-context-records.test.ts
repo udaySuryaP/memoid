@@ -631,6 +631,42 @@ suite("Stage 10H Context Records PostgreSQL", () => {
     ).resolves.toMatchObject({ identityVersion: 1, recordVersion: 1, replayed: false });
   });
 
+  it("re-resolves later stronger authority at read time without rewriting provenance", async () => {
+    const source = await createSourceEvidence(owner, {
+      repositoryPath: "packages/domain/src/context-record.ts",
+    });
+    const broad = await setAuthority(owner, source.sourceId, { refSelector: "ANY_REF" });
+    const created = await owner.service.put(
+      owner.context,
+      sourcePut(owner, source.evidence, broad, "read-time-shadowing"),
+    );
+    expect(
+      (await owner.service.list(owner.context, owner.projectId)).find(
+        (row) => row.contextRecordId === created.contextRecordId,
+      ),
+    ).toMatchObject({ freshness: "CURRENT", sourceAuthorityAssignmentId: broad });
+
+    const stronger = await setAuthority(owner, source.sourceId, {
+      scopeKind: "PATH_PREFIX",
+      scopeKey: "packages/domain",
+      refSelector: "ANY_REF",
+    });
+    expect(stronger).not.toBe(broad);
+    expect(
+      (await owner.service.list(owner.context, owner.projectId)).find(
+        (row) => row.contextRecordId === created.contextRecordId,
+      ),
+    ).toMatchObject({ freshness: "AUTHORITY_CHANGED", sourceAuthorityAssignmentId: broad });
+    const provenance = (
+      await sql<{
+        authorityId: string;
+      }>`select source_authority_assignment_id::text as "authorityId"
+        from memoid.context_record_evidence_provenance
+        where context_record_id=${created.contextRecordId}::uuid`.execute(isolated.db)
+    ).rows[0];
+    expect(provenance?.authorityId).toBe(broad);
+  });
+
   it("applies exact-ref then default-branch then any-ref precedence", async () => {
     const anySource = await createSourceEvidence(owner);
     const defaultSource = await createSourceEvidence(owner);
@@ -666,6 +702,31 @@ suite("Stage 10H Context Records PostgreSQL", () => {
         sourcePut(owner, exactSource.evidence, exact, "exact-winner"),
       ),
     ).resolves.toMatchObject({ replayed: false });
+  });
+
+  it("uses the same ref-local winner for Context writes and reads", async () => {
+    const main = await createSourceEvidence(owner, { refKey: "refs/heads/main" });
+    const feature = await createSourceEvidence(owner, { refKey: "refs/heads/feature" });
+    await sql`insert into memoid.source_observations(workspace_id,project_id,frontier_unit_id,
+      observation_sequence,external_revision,observed_at) values(${owner.workspaceId}::uuid,
+      ${owner.projectId}::uuid,${feature.unit}::uuid,2,${"f".repeat(40)},clock_timestamp())`.execute(
+      isolated.db,
+    );
+    await sql`update memoid.source_frontier_states set observed_sequence=2,desired_sequence=2,
+      ingested_sequence=1 where frontier_unit_id=${feature.unit}::uuid`.execute(isolated.db);
+    const exactMain = await setAuthority(owner, main.sourceId, {
+      refSelector: "EXACT_REF",
+      refKey: "refs/heads/main",
+    });
+    const created = await owner.service.put(
+      owner.context,
+      sourcePut(owner, main.evidence, exactMain, "ref-local-write-read"),
+    );
+    expect(
+      (await owner.service.list(owner.context, owner.projectId)).find(
+        (row) => row.contextRecordId === created.contextRecordId,
+      ),
+    ).toMatchObject({ freshness: "CURRENT", sourceAuthorityAssignmentId: exactMain });
   });
 
   it("rejects replaced authority and never falls back from a degraded winner", async () => {

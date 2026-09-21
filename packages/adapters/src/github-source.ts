@@ -251,6 +251,51 @@ export interface AuthenticatedGitHubLifecycleSignal {
   readonly providerOccurredAt: Date | null;
 }
 
+export interface AuthenticatedGitHubSourceChangeSignal {
+  readonly appId: string;
+  readonly installationId: string;
+  readonly repositoryId: string;
+  readonly refKey: string;
+  readonly deliveryId: string;
+}
+
+export function authenticateGitHubSourceChangeSignal(input: {
+  payload: Uint8Array;
+  signature: string | null;
+  deliveryId: string | null;
+  event: string | null;
+  expectedAppId: string;
+  secrets: readonly Uint8Array[];
+  maximumBytes?: number;
+}): AuthenticatedGitHubSourceChangeSignal {
+  if (input.event !== "push") throw new Error("Unsupported GitHub Source change signal");
+  if (input.payload.byteLength > (input.maximumBytes ?? 1_048_576))
+    throw new Error("GitHub webhook payload is too large");
+  if (!verifyGitHubWebhookSignature(input.payload, input.signature, input.secrets))
+    throw new Error("GitHub webhook signature is invalid");
+  const deliveryId = sanitizeGitHubDeliveryId(input.deliveryId);
+  if (!deliveryId) throw new Error("GitHub delivery ID is invalid");
+  const body = JSON.parse(Buffer.from(input.payload).toString("utf8")) as Record<string, unknown>;
+  const installation = body.installation as { id?: unknown; app_id?: unknown } | undefined;
+  const repository = body.repository as { id?: unknown } | undefined;
+  const appId = githubProviderId(input.expectedAppId, "GitHub App ID");
+  if (
+    installation?.app_id !== undefined &&
+    providerPayloadId(installation.app_id, "GitHub App ID") !== appId
+  )
+    throw new Error("GitHub webhook App ID does not match this endpoint");
+  const refKey = typeof body.ref === "string" ? body.ref : "";
+  if (!/^refs\/heads\/[A-Za-z0-9._/-]{1,1000}$/u.test(refKey) || refKey.includes(".."))
+    throw new Error("GitHub push ref is invalid");
+  return {
+    appId,
+    installationId: providerPayloadId(installation?.id, "GitHub installation ID"),
+    repositoryId: providerPayloadId(repository?.id, "GitHub repository ID"),
+    refKey,
+    deliveryId,
+  };
+}
+
 export function authenticateGitHubLifecycleSignals(input: {
   payload: Uint8Array;
   signature: string | null;

@@ -37,6 +37,15 @@ a later provider default-branch change makes the assignment
 `REVALIDATION_REQUIRED` rather than silently following it. Unavailable or stale
 winning assignments never fall back to broader/lower-trust state.
 
+AUDIT-1A centralizes live qualification in a database resolver used by Context
+writes and reads. Exact-ref and default-branch assignments inspect only their
+applicable ref. An `ANY_REF` assignment is effective when at least one observed
+applicable ref is current; an unrelated lagging ref does not make every ref
+unusable. When resolving authority for a concrete Evidence Reference, even an
+`ANY_REF` assignment is qualified against that Evidence ref. Historical Context
+provenance remains immutable when a later, stronger assignment becomes the
+effective winner.
+
 Source Authority remains evidence authority only. It grants no instruction,
 authentication, access, semantic-review, system-execution, provider, or Context
 mutation authority.

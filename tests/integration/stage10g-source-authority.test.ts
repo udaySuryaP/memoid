@@ -235,6 +235,34 @@ suite("Stage 10G Source Authority PostgreSQL", () => {
     };
   }
 
+  async function addRefState(
+    f: Fixture,
+    refKey: string,
+    input: { observed: boolean; desired: number; ingested: number | null },
+  ) {
+    const unitId = (
+      await sql<{ id: string }>`insert into memoid.source_frontier_units(
+        workspace_id,project_id,source_id,scope_key,ref_key
+      ) values(${f.workspaceId}::uuid,${f.projectId}::uuid,${f.sourceId}::uuid,'repository',${refKey})
+      returning id::text`.execute(isolated.db)
+    ).rows[0]!.id;
+    if (input.observed) {
+      for (let sequence = 1; sequence <= input.desired; sequence += 1) {
+        await sql`insert into memoid.source_observations(
+          workspace_id,project_id,frontier_unit_id,observation_sequence,external_revision,observed_at
+        ) values(${f.workspaceId}::uuid,${f.projectId}::uuid,${unitId}::uuid,${sequence},
+          ${String(sequence).repeat(40).slice(0, 40)},clock_timestamp())`.execute(isolated.db);
+      }
+    }
+    await sql`insert into memoid.source_frontier_states(
+      workspace_id,project_id,frontier_unit_id,observed_sequence,desired_sequence,ingested_sequence
+    ) values(${f.workspaceId}::uuid,${f.projectId}::uuid,${unitId}::uuid,
+      ${input.observed ? input.desired : null},${input.observed ? input.desired : null},${input.ingested})`.execute(
+      isolated.db,
+    );
+    return unitId;
+  }
+
   it("creates, replaces, revokes, audits, and preserves immutable history without Context promotion", async () => {
     const first = await owner.service.set(owner.context, setInput(owner, "first"));
     expect(first).toMatchObject({ version: 1, replayed: false });
@@ -353,5 +381,68 @@ suite("Stage 10G Source Authority PostgreSQL", () => {
     await expect(
       owner.service.set(owner.context, setInput(owner, "unavailable", 1)),
     ).rejects.toThrow("SOURCE_UNAVAILABLE");
+  });
+
+  it("isolates exact-ref health from unrelated observed and behind refs", async () => {
+    const exactBase = {
+      ...setInput(owner, "exact-main"),
+      refSelector: "EXACT_REF" as const,
+      refKey: "refs/heads/main",
+    };
+    const exact = await owner.service.set(owner.context, {
+      ...exactBase,
+      requestFingerprint: fingerprintLifecycleRequest(exactBase),
+    });
+    await addRefState(owner, "refs/heads/feature", {
+      observed: true,
+      desired: 2,
+      ingested: 1,
+    });
+    expect(
+      (await owner.service.overview(owner.context, owner.projectId)).assignments.find(
+        (assignment) => assignment.id === exact.assignmentId,
+      )?.qualification,
+    ).toBe("SOURCE_UNOBSERVED");
+
+    const mainUnit = await addRefState(owner, "refs/heads/main", {
+      observed: true,
+      desired: 1,
+      ingested: 1,
+    });
+    expect(
+      (await owner.service.overview(owner.context, owner.projectId)).assignments.find(
+        (assignment) => assignment.id === exact.assignmentId,
+      )?.qualification,
+    ).toBe("EFFECTIVE");
+    await sql`insert into memoid.source_observations(
+      workspace_id,project_id,frontier_unit_id,observation_sequence,external_revision,observed_at
+    ) values(${owner.workspaceId}::uuid,${owner.projectId}::uuid,${mainUnit}::uuid,2,
+      ${"b".repeat(40)},clock_timestamp())`.execute(isolated.db);
+    await sql`update memoid.source_frontier_states set desired_sequence=2
+      where frontier_unit_id=${mainUnit}::uuid`.execute(isolated.db);
+    expect(
+      (await owner.service.overview(owner.context, owner.projectId)).assignments.find(
+        (assignment) => assignment.id === exact.assignmentId,
+      )?.qualification,
+    ).toBe("SOURCE_BEHIND");
+  });
+
+  it("treats ANY_REF as effective when at least one applicable ref is current", async () => {
+    await addRefState(owner, "refs/heads/main", { observed: true, desired: 1, ingested: 1 });
+    await addRefState(owner, "refs/heads/feature", { observed: true, desired: 2, ingested: 1 });
+    const anyBase = {
+      ...setInput(owner, "any-ref"),
+      refSelector: "ANY_REF" as const,
+      refKey: null,
+    };
+    const any = await owner.service.set(owner.context, {
+      ...anyBase,
+      requestFingerprint: fingerprintLifecycleRequest(anyBase),
+    });
+    expect(
+      (await owner.service.overview(owner.context, owner.projectId)).assignments.find(
+        (assignment) => assignment.id === any.assignmentId,
+      )?.qualification,
+    ).toBe("EFFECTIVE");
   });
 });

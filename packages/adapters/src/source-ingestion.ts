@@ -18,10 +18,13 @@ import {
   isGitLfsPointer,
   parseUuidV7,
   repositoryRevision,
+  type ActorId,
   type EvidenceReferenceDraft,
+  type ProjectId,
   type SourceFrontierUnitId,
   type SourceId,
   type SourceObservationId,
+  type WorkspaceId,
 } from "@memoid/domain";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
@@ -75,7 +78,9 @@ function increment(counts: Record<string, number>, key: string): void {
 export class GitHubSourceIngestionAdapter implements SourceIngestionProviderPort {
   private readonly app: App;
 
-  public constructor(private readonly configuration: GitHubAppConfiguration) {
+  public constructor(
+    private readonly configuration: Pick<GitHubAppConfiguration, "appId" | "privateKey">,
+  ) {
     if (configuration.appId.length === 0) throw new Error("GitHub App ID is required");
     this.app = new App({
       appId: configuration.appId,
@@ -596,6 +601,71 @@ export class PostgresSourceIngestionRepository implements SourceIngestionReposit
         ${acquired.frontierUnitId}::uuid, ${context.actor.id}::uuid, ${acquired.leaseToken}::uuid,
         ${input.nextAttemptAt}, ${input.failureCode}, ${JSON.stringify(input.failureMetadata ?? {})}::jsonb
       )`.execute(trx);
+    });
+  }
+
+  public async close(): Promise<void> {
+    await this.db.destroy();
+  }
+}
+
+export interface SourceIngestionRuntimeTarget {
+  readonly context: SourceIngestionContext;
+  readonly sourceId: SourceId;
+  readonly refKey: string;
+  readonly correlationId: string;
+}
+
+export class PostgresSourceIngestionRuntimeRepository {
+  private readonly db: Kysely<MemoidDatabase>;
+
+  public constructor(connectionString: string) {
+    this.db = createDatabase(connectionString, 2);
+  }
+
+  public async listTargets(input: {
+    appId: string;
+    installationId?: string;
+    repositoryId?: string;
+    refKey?: string;
+  }): Promise<readonly SourceIngestionRuntimeTarget[]> {
+    const rows = (
+      await sql<{
+        accountId: string;
+        workspaceId: string;
+        projectId: string;
+        sourceId: string;
+        workerActorId: string;
+        refKey: string;
+        correlationId: string;
+      }>`select account_id::text as "accountId", workspace_id::text as "workspaceId",
+        project_id::text as "projectId", source_id::text as "sourceId",
+        worker_actor_id::text as "workerActorId", ref_key as "refKey",
+        correlation_id::text as "correlationId"
+      from memoid.list_source_ingestion_runtime_targets(
+        ${input.appId}, ${input.installationId ?? null},
+        ${input.repositoryId ?? null}, ${input.refKey ?? null}
+      )`.execute(this.db)
+    ).rows;
+    return rows.map((row) => {
+      const workspaceId = parseUuidV7(row.workspaceId, "WorkspaceId") as WorkspaceId;
+      const projectId = parseUuidV7(row.projectId, "ProjectId") as ProjectId;
+      const actorId = parseUuidV7(row.workerActorId, "ActorId") as ActorId;
+      return {
+        context: {
+          accountId: row.accountId,
+          workspaceId,
+          projectId,
+          actor: {
+            id: actorId,
+            kind: "MEMOID_WORKER" as const,
+            reference: "worker:source-ingestion",
+          },
+        },
+        sourceId: parseUuidV7(row.sourceId, "SourceId") as SourceId,
+        refKey: row.refKey,
+        correlationId: row.correlationId,
+      };
     });
   }
 

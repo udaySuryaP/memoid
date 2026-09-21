@@ -95,6 +95,9 @@ importers:
       "@memoid/db":
         specifier: workspace:*
         version: link:../../packages/db
+      "@memoid/jobs":
+        specifier: workspace:*
+        version: link:../../packages/jobs
       "@memoid/observability":
         specifier: workspace:*
         version: link:../../packages/observability
@@ -160,9 +163,18 @@ importers:
 
   apps/worker:
     dependencies:
+      "@memoid/adapters":
+        specifier: workspace:*
+        version: link:../../packages/adapters
+      "@memoid/application":
+        specifier: workspace:*
+        version: link:../../packages/application
       "@memoid/config":
         specifier: workspace:*
         version: link:../../packages/config
+      "@memoid/domain":
+        specifier: workspace:*
+        version: link:../../packages/domain
       "@memoid/jobs":
         specifier: workspace:*
         version: link:../../packages/jobs
