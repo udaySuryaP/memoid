@@ -418,7 +418,7 @@ suite("Stage 10G Source Authority PostgreSQL", () => {
       workspace_id,project_id,frontier_unit_id,observation_sequence,external_revision,observed_at
     ) values(${owner.workspaceId}::uuid,${owner.projectId}::uuid,${mainUnit}::uuid,2,
       ${"b".repeat(40)},clock_timestamp())`.execute(isolated.db);
-    await sql`update memoid.source_frontier_states set desired_sequence=2
+    await sql`update memoid.source_frontier_states set observed_sequence=2,desired_sequence=2
       where frontier_unit_id=${mainUnit}::uuid`.execute(isolated.db);
     expect(
       (await owner.service.overview(owner.context, owner.projectId)).assignments.find(

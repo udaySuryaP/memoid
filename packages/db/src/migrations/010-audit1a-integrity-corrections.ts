@@ -376,6 +376,15 @@ export const audit1aIntegrityCorrectionsMigration: Migration = {
   },
   async down(db) {
     await sql`set local role memoid_owner`.execute(db);
+    await sql`do $$
+      begin
+        if exists (select 1 from memoid.context_record_origins)
+          or exists (select 1 from memoid.context_record_evidence_provenance)
+          or exists (select 1 from memoid.context_identity_endings)
+        then
+          raise exception 'STAGE10H_ROLLBACK_REFUSED_POPULATED_CONTEXT_HISTORY';
+        end if;
+      end $$`.execute(db);
     await sql
       .raw(`drop function if exists memoid.put_context_record_v2${putContextRecordSignature}`)
       .execute(db);

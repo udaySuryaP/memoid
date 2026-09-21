@@ -108,6 +108,6 @@ export async function scheduleSourceIngestionRecovery(boss: PgBoss, appId: strin
     sourceIngestionQueue,
     "*/5 * * * *",
     { kind: "SOURCE_INGESTION_SIGNAL", trigger: "RECOVERY_SCAN", appId },
-    { tz: "UTC", key: `source-ingestion-recovery:${appId}` },
+    { tz: "UTC", key: `source-ingestion-recovery/${appId}` },
   );
 }
