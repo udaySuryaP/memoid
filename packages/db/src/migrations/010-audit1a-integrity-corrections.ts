@@ -156,7 +156,7 @@ async function runtimeDiscovery(db: Kysely<unknown>): Promise<void> {
       loop
         insert into memoid.actors(workspace_id,actor_kind,actor_reference,display_label)
           values(target.workspace_id,'MEMOID_WORKER','worker:source-ingestion','Source ingestion worker')
-          on conflict (workspace_id,actor_kind,actor_reference) do nothing;
+          on conflict on constraint actors_workspace_identity_unique do nothing;
         select a.id into actor_id from memoid.actors a
           where a.workspace_id=target.workspace_id and a.actor_kind='MEMOID_WORKER'
             and a.actor_reference='worker:source-ingestion';
