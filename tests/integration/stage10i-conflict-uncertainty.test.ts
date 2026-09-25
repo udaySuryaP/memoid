@@ -60,6 +60,7 @@ suite("Stage 10I Conflict and Uncertainty PostgreSQL", () => {
   let owner: Fixture;
   let foreign: Fixture;
   let sequence = 0;
+  const candidateSequences = new Map<ProjectId, number>();
   const closables: Array<{ close(): Promise<void> }> = [];
 
   beforeAll(async () => {
@@ -74,6 +75,7 @@ suite("Stage 10I Conflict and Uncertainty PostgreSQL", () => {
   beforeEach(async () => {
     await sql`truncate table memoid.accounts cascade`.execute(isolated.db);
     sequence = 0;
+    candidateSequences.clear();
     owner = await fixture("owner");
     foreign = await fixture("foreign");
   });
@@ -215,11 +217,12 @@ suite("Stage 10I Conflict and Uncertainty PostgreSQL", () => {
     contextIdentityId: ContextIdentityId,
     value: string,
   ): Promise<WorkingContextItemId> {
-    sequence += 1;
+    const submissionSequence = (candidateSequences.get(f.projectId) ?? 0) + 1;
+    candidateSequences.set(f.projectId, submissionSequence);
     const submission = (
       await sql<{ id: string }>`insert into memoid.candidate_submissions(workspace_id,project_id,
         submission_sequence,submitted_at,payload_hash,source_frontier_basis)
-        values(${f.workspaceId}::uuid,${f.projectId}::uuid,${sequence},clock_timestamp(),
+        values(${f.workspaceId}::uuid,${f.projectId}::uuid,${submissionSequence},clock_timestamp(),
         sha256(convert_to(${value},'UTF8')),'[]'::jsonb) returning id::text`.execute(isolated.db)
     ).rows[0]!.id;
     const assertion = (
@@ -283,7 +286,7 @@ suite("Stage 10I Conflict and Uncertainty PostgreSQL", () => {
         frontier_unit_id,source_observation_id,observation_sequence,evidence_kind,repository_revision,
         repository_path,provider_object_id,byte_size,content_sha256) values(${f.workspaceId}::uuid,
         ${f.projectId}::uuid,${sourceId}::uuid,${unit}::uuid,${observation}::uuid,1,'FILE',
-        ${String(sequence).padStart(40, "b")},'packages/domain/src/index.ts',${String(sequence)},42,
+        ${String(sequence).padStart(40, "b")},'packages/domain/src/index.ts',${sequence.toString(16).padStart(40, "c").slice(-40)},42,
         ${Buffer.alloc(32, contentByte)}::bytea) returning id::text`.execute(isolated.db)
     ).rows[0]!.id as EvidenceReferenceId;
     return { sourceId, evidenceReferenceId };

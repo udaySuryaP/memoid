@@ -460,8 +460,9 @@ ${authenticatedMutationPrefix}
               and project_id=project_row.id and context_identity_id=identity_row.id for update;
           end;
         end if;
-        select * into current_row from memoid.conflict_current_states where workspace_id=project_row.workspace_id
-          and project_id=project_row.id and conflict_id=conflict_row.id for update;
+        select current_state.* into current_row from memoid.conflict_current_states current_state
+          where current_state.workspace_id=project_row.workspace_id
+          and current_state.project_id=project_row.id and current_state.conflict_id=conflict_row.id for update;
         if found then
           if current_row.occurrence_version<>p_expected_version then raise exception 'STALE_CONFLICT_VERSION'; end if;
           select * into prior_row from memoid.conflict_occurrences where workspace_id=project_row.workspace_id
@@ -476,8 +477,9 @@ ${authenticatedMutationPrefix}
         if not found then raise exception 'RESOURCE_NOT_FOUND'; end if;
         select * into identity_row from memoid.context_identities where workspace_id=project_row.workspace_id
           and project_id=project_row.id and id=conflict_row.context_identity_id for share;
-        select * into current_row from memoid.conflict_current_states where workspace_id=project_row.workspace_id
-          and project_id=project_row.id and conflict_id=conflict_row.id for update;
+        select current_state.* into current_row from memoid.conflict_current_states current_state
+          where current_state.workspace_id=project_row.workspace_id
+          and current_state.project_id=project_row.id and current_state.conflict_id=conflict_row.id for update;
         if not found or current_row.occurrence_version<>p_expected_version
           then raise exception 'STALE_CONFLICT_VERSION'; end if;
         if current_row.lifecycle_state<>'ACTIVE' then raise exception 'CONFLICT_ALREADY_ENDED'; end if;
@@ -519,16 +521,20 @@ ${authenticatedMutationPrefix}
           conflict_occurrence_id,participant_ordinal,participant_kind,evidence_reference_id,
           working_context_item_id,context_record_id,source_id,effective_authority_assignment_id,
           source_qualification,claim_fingerprint)
-        select workspace_id,project_id,conflict_id,new_occurrence_id,participant_ordinal,participant_kind,
-          evidence_reference_id,working_context_item_id,context_record_id,source_id,
-          effective_authority_assignment_id,source_qualification,claim_fingerprint
-        from memoid.conflict_participants where workspace_id=project_row.workspace_id
-          and project_id=project_row.id and conflict_occurrence_id=current_row.current_occurrence_id;
+        select prior_participant.workspace_id,prior_participant.project_id,prior_participant.conflict_id,
+          new_occurrence_id,prior_participant.participant_ordinal,prior_participant.participant_kind,
+          prior_participant.evidence_reference_id,prior_participant.working_context_item_id,
+          prior_participant.context_record_id,prior_participant.source_id,
+          prior_participant.effective_authority_assignment_id,prior_participant.source_qualification,
+          prior_participant.claim_fingerprint from memoid.conflict_participants prior_participant
+        where prior_participant.workspace_id=project_row.workspace_id
+          and prior_participant.project_id=project_row.id
+          and prior_participant.conflict_occurrence_id=current_row.current_occurrence_id;
       end if;
       insert into memoid.conflict_current_states(workspace_id,project_id,conflict_id,current_occurrence_id,
         occurrence_version,lifecycle_state,updated_at) values(project_row.workspace_id,project_row.id,
         conflict_row.id,new_occurrence_id,new_version,p_lifecycle_state,now_at)
-      on conflict(workspace_id,project_id,conflict_id) do update set
+      on conflict on constraint conflict_current_states_pkey do update set
         current_occurrence_id=excluded.current_occurrence_id,occurrence_version=excluded.occurrence_version,
         lifecycle_state=excluded.lifecycle_state,updated_at=excluded.updated_at;
       insert into memoid.audit_events(workspace_id,project_id,actor_id,category,event_type,occurred_at,
@@ -650,8 +656,10 @@ ${authenticatedMutationPrefix}
             returning * into uncertainty_row;
           exception when unique_violation then raise exception 'STALE_UNCERTAINTY_VERSION'; end;
         end if;
-        select * into current_row from memoid.uncertainty_current_states where workspace_id=project_row.workspace_id
-          and project_id=project_row.id and uncertainty_id=uncertainty_row.id for update;
+        select current_state.* into current_row from memoid.uncertainty_current_states current_state
+          where current_state.workspace_id=project_row.workspace_id
+          and current_state.project_id=project_row.id
+          and current_state.uncertainty_id=uncertainty_row.id for update;
         if found then
           if current_row.occurrence_version<>p_expected_version then raise exception 'STALE_UNCERTAINTY_VERSION'; end if;
           select * into prior_row from memoid.uncertainty_occurrences where workspace_id=project_row.workspace_id
@@ -668,8 +676,10 @@ ${authenticatedMutationPrefix}
         if not found then raise exception 'RESOURCE_NOT_FOUND'; end if;
         select * into identity_row from memoid.context_identities where workspace_id=project_row.workspace_id
           and project_id=project_row.id and id=uncertainty_row.context_identity_id for share;
-        select * into current_row from memoid.uncertainty_current_states where workspace_id=project_row.workspace_id
-          and project_id=project_row.id and uncertainty_id=uncertainty_row.id for update;
+        select current_state.* into current_row from memoid.uncertainty_current_states current_state
+          where current_state.workspace_id=project_row.workspace_id
+          and current_state.project_id=project_row.id
+          and current_state.uncertainty_id=uncertainty_row.id for update;
         if not found or current_row.occurrence_version<>p_expected_version
           then raise exception 'STALE_UNCERTAINTY_VERSION'; end if;
         if current_row.lifecycle_state<>'ACTIVE' then raise exception 'UNCERTAINTY_ALREADY_ENDED'; end if;
@@ -694,7 +704,7 @@ ${authenticatedMutationPrefix}
       insert into memoid.uncertainty_current_states(workspace_id,project_id,uncertainty_id,
         current_occurrence_id,occurrence_version,lifecycle_state,updated_at)
       values(project_row.workspace_id,project_row.id,uncertainty_row.id,new_occurrence_id,new_version,
-        p_lifecycle_state,now_at) on conflict(workspace_id,project_id,uncertainty_id) do update set
+        p_lifecycle_state,now_at) on conflict on constraint uncertainty_current_states_pkey do update set
         current_occurrence_id=excluded.current_occurrence_id,occurrence_version=excluded.occurrence_version,
         lifecycle_state=excluded.lifecycle_state,updated_at=excluded.updated_at;
       insert into memoid.audit_events(workspace_id,project_id,actor_id,category,event_type,occurred_at,
@@ -748,6 +758,10 @@ export const stage10iConflictUncertaintyMigration: Migration = {
       if exists(select 1 from memoid.conflict_occurrences)
         or exists(select 1 from memoid.uncertainty_occurrences)
       then raise exception 'STAGE10I_ROLLBACK_REFUSED_POPULATED_INTEGRITY_HISTORY'; end if;
+      if exists(select 1 from memoid.context_record_origins)
+        or exists(select 1 from memoid.context_record_evidence_provenance)
+        or exists(select 1 from memoid.context_identity_endings)
+      then raise exception 'STAGE10H_ROLLBACK_REFUSED_POPULATED_CONTEXT_HISTORY'; end if;
     end $$`.execute(db);
     await sql`drop function if exists memoid.record_uncertainty_state(bytea,uuid,uuid,uuid,bigint,varchar,varchar,uuid,varchar,uuid,varchar,uuid,bytea,bytea,uuid,uuid)`.execute(
       db,
