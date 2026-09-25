@@ -134,7 +134,11 @@ async function runtimeDiscovery(db: Kysely<unknown>): Promise<void> {
       if p_app_id !~ '^[1-9][0-9]{0,39}$'
         or (p_installation_id is not null and p_installation_id !~ '^[1-9][0-9]{0,39}$')
         or (p_repository_id is not null and p_repository_id !~ '^[1-9][0-9]{0,39}$')
-        or (p_ref_key is not null and p_ref_key !~ '^refs/heads/[A-Za-z0-9._/-]{1,1000}$')
+        or (p_ref_key is not null and (
+          length(p_ref_key) > 1011
+          or p_ref_key !~ '^refs/heads/[A-Za-z0-9._/-]+$'
+          or position('..' in p_ref_key) > 0
+        ))
       then raise exception 'INVALID_INGESTION_RUNTIME_TARGET'; end if;
       for target in
         select distinct w.account_id, c.workspace_id, c.project_id, c.source_id, refs.ref_key
