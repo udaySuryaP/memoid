@@ -73,7 +73,7 @@ async function authorityResolution(db: Kysely<unknown>): Promise<void> {
     declare winner record; winner_count bigint;
     begin
       with target as (
-        select e.repository_path, u.ref_key
+        select e.source_id as evidence_source_id, e.repository_path, u.ref_key
         from memoid.evidence_references e
         join memoid.source_frontier_units u on u.workspace_id=e.workspace_id
           and u.project_id=e.project_id and u.id=e.frontier_unit_id
@@ -94,12 +94,14 @@ async function authorityResolution(db: Kysely<unknown>): Promise<void> {
         join memoid.github_source_connections target_connection
           on target_connection.workspace_id=p_workspace_id
           and target_connection.project_id=p_project_id
+          and target_connection.source_id=a.source_id
         where lower(s.authority_category || ':' || s.authority_facet)=lower(p_category_facet)
           and (s.scope_kind='PROJECT' or target.repository_path=s.scope_key
             or target.repository_path like s.scope_key || '/%')
           and (s.ref_selector='ANY_REF'
             or (s.ref_selector='EXACT_REF' and s.ref_key=target.ref_key)
             or (s.ref_selector='DEFAULT_BRANCH'
+              and a.source_id=target.evidence_source_id
               and target.ref_key='refs/heads/' || target_connection.default_branch))
       ), ranked as (
         select candidates.*, dense_rank() over (order by ref_rank desc,scope_rank desc) winner_rank

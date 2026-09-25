@@ -60,7 +60,7 @@ suite("Stage 10H Context Records PostgreSQL", () => {
   let foreign: Fixture;
   let sourceSequence = 0;
   let authoritySequence = 0;
-  const sourcesByProject = new Map<string, SourceId>();
+  const sourcesByProjectAndKey = new Map<string, SourceId>();
   const frontiersByProjectRef = new Map<string, { unitId: string; observationSequence: number }>();
   const closables: Array<{ close(): Promise<void> }> = [];
 
@@ -82,7 +82,7 @@ suite("Stage 10H Context Records PostgreSQL", () => {
     await sql`truncate table memoid.accounts cascade`.execute(isolated.db);
     sourceSequence = 0;
     authoritySequence = 0;
-    sourcesByProject.clear();
+    sourcesByProjectAndKey.clear();
     frontiersByProjectRef.clear();
     owner = await fixture("owner");
     foreign = await fixture("foreign");
@@ -452,13 +452,15 @@ suite("Stage 10H Context Records PostgreSQL", () => {
       repositoryPath?: string;
       refKey?: string;
       defaultBranch?: string;
+      sourceKey?: string;
     } = {},
   ) {
     sourceSequence += 1;
     const repositoryPath = options.repositoryPath ?? "packages/domain/src/index.ts";
     const refKey = options.refKey ?? "refs/heads/main";
     const defaultBranch = options.defaultBranch ?? "main";
-    let sourceId = sourcesByProject.get(f.projectId);
+    const sourceMapKey = `${f.projectId}:${options.sourceKey ?? "default"}`;
+    let sourceId = sourcesByProjectAndKey.get(sourceMapKey);
     if (!sourceId) {
       sourceId = (
         await sql<{ id: string }>`insert into memoid.sources(workspace_id,project_id,source_kind)
@@ -466,7 +468,7 @@ suite("Stage 10H Context Records PostgreSQL", () => {
           isolated.db,
         )
       ).rows[0]!.id as SourceId;
-      sourcesByProject.set(f.projectId, sourceId);
+      sourcesByProjectAndKey.set(sourceMapKey, sourceId);
       await sql`insert into memoid.github_source_connections(workspace_id,project_id,source_id,app_id,installation_id,
       account_id,repository_id,owner_login,repository_name,full_name,html_url,visibility,default_branch,connection_state,verified_at)
       values(${f.workspaceId}::uuid,${f.projectId}::uuid,${sourceId}::uuid,'1',${String(sourceSequence)},'3',${String(Date.now() + sourceSequence)},'owner',${`repo-${sourceSequence}`},
@@ -474,7 +476,7 @@ suite("Stage 10H Context Records PostgreSQL", () => {
         isolated.db,
       );
     }
-    const frontierKey = `${f.projectId}:${refKey}`;
+    const frontierKey = `${f.projectId}:${sourceId}:${refKey}`;
     let frontier = frontiersByProjectRef.get(frontierKey);
     if (!frontier) {
       const unitId = (
@@ -561,6 +563,20 @@ suite("Stage 10H Context Records PostgreSQL", () => {
   async function sourceEvidence(f: Fixture) {
     const source = await createSourceEvidence(f);
     return { ...source, authority: await setAuthority(f, source.sourceId) };
+  }
+
+  async function resolveAuthority(f: Fixture, evidenceReferenceId: EvidenceReferenceId) {
+    return (
+      await sql<{
+        assignmentId: string | null;
+        sourceId: string | null;
+        qualification: string;
+      }>`select assignment_id::text as "assignmentId", source_id::text as "sourceId", qualification
+        from memoid.resolve_effective_source_authority(
+          ${f.workspaceId}::uuid,${f.projectId}::uuid,'implementation_state:code',
+          ${evidenceReferenceId}::uuid
+        )`.execute(isolated.db)
+    ).rows[0]!;
   }
 
   function sourcePut(
@@ -665,6 +681,152 @@ suite("Stage 10H Context Records PostgreSQL", () => {
         where context_record_id=${created.contextRecordId}::uuid`.execute(isolated.db)
     ).rows[0];
     expect(provenance?.authorityId).toBe(broad);
+  });
+
+  it("does not leak DEFAULT_BRANCH applicability across Sources", async () => {
+    const sourceA = await createSourceEvidence(owner, {
+      sourceKey: "source-a",
+      defaultBranch: "main",
+      refKey: "refs/heads/main",
+    });
+    const sourceB = await createSourceEvidence(owner, {
+      sourceKey: "source-b",
+      defaultBranch: "develop",
+      refKey: "refs/heads/main",
+    });
+    const authorityA = await setAuthority(owner, sourceA.sourceId);
+
+    expect(await resolveAuthority(owner, sourceB.evidence)).toEqual({
+      assignmentId: null,
+      sourceId: null,
+      qualification: "MISSING",
+    });
+    await expect(
+      owner.service.put(
+        owner.context,
+        sourcePut(owner, sourceB.evidence, authorityA, "cross-source-default-leak"),
+      ),
+    ).rejects.toThrow("CONTEXT_AUTHORITY_MISSING");
+  });
+
+  it("applies DEFAULT_BRANCH using the Evidence Source connection", async () => {
+    await createSourceEvidence(owner, {
+      sourceKey: "source-a",
+      defaultBranch: "main",
+      refKey: "refs/heads/main",
+    });
+    const sourceB = await createSourceEvidence(owner, {
+      sourceKey: "source-b",
+      defaultBranch: "develop",
+      refKey: "refs/heads/develop",
+    });
+    const authorityB = await setAuthority(owner, sourceB.sourceId);
+
+    expect(await resolveAuthority(owner, sourceB.evidence)).toEqual({
+      assignmentId: authorityB,
+      sourceId: sourceB.sourceId,
+      qualification: "EFFECTIVE",
+    });
+    await expect(
+      owner.service.put(
+        owner.context,
+        sourcePut(owner, sourceB.evidence, authorityB, "source-b-default-winner"),
+      ),
+    ).resolves.toMatchObject({ replayed: false });
+  });
+
+  it("keeps cross-Source ref and path precedence deterministic without false ambiguity", async () => {
+    const sourceA = await createSourceEvidence(owner, {
+      sourceKey: "source-a",
+      defaultBranch: "main",
+      refKey: "refs/heads/develop",
+      repositoryPath: "packages/domain/src/context-record.ts",
+    });
+    const sourceB = await createSourceEvidence(owner, {
+      sourceKey: "source-b",
+      defaultBranch: "develop",
+      refKey: "refs/heads/develop",
+      repositoryPath: "packages/domain/src/context-record.ts",
+    });
+    const projectAny = await setAuthority(owner, sourceA.sourceId, { refSelector: "ANY_REF" });
+    const pathAny = await setAuthority(owner, sourceB.sourceId, {
+      scopeKind: "PATH_PREFIX",
+      scopeKey: "packages/domain",
+      refSelector: "ANY_REF",
+    });
+
+    expect(await resolveAuthority(owner, sourceB.evidence)).toEqual({
+      assignmentId: pathAny,
+      sourceId: sourceB.sourceId,
+      qualification: "EFFECTIVE",
+    });
+
+    const exactAcrossSources = await setAuthority(owner, sourceA.sourceId, {
+      refSelector: "EXACT_REF",
+      refKey: "refs/heads/develop",
+    });
+    expect(exactAcrossSources).not.toBe(projectAny);
+    expect(await resolveAuthority(owner, sourceB.evidence)).toEqual({
+      assignmentId: exactAcrossSources,
+      sourceId: sourceA.sourceId,
+      qualification: "EFFECTIVE",
+    });
+    await expect(
+      owner.service.put(
+        owner.context,
+        sourcePut(owner, sourceB.evidence, pathAny, "cross-source-exact-winner"),
+      ),
+    ).rejects.toThrow("CONTEXT_AUTHORITY_NOT_WINNER");
+  });
+
+  it("uses one multi-Source resolver for Context write and read freshness", async () => {
+    const sourceA = await createSourceEvidence(owner, {
+      sourceKey: "source-a",
+      defaultBranch: "main",
+      refKey: "refs/heads/main",
+      repositoryPath: "packages/domain/src/context-record.ts",
+    });
+    const authorityA = await setAuthority(owner, sourceA.sourceId);
+    const created = await owner.service.put(
+      owner.context,
+      sourcePut(owner, sourceA.evidence, authorityA, "multi-source-write-read"),
+    );
+    expect(
+      (await owner.service.list(owner.context, owner.projectId)).find(
+        (row) => row.contextRecordId === created.contextRecordId,
+      ),
+    ).toMatchObject({ freshness: "CURRENT", sourceAuthorityAssignmentId: authorityA });
+
+    const sourceB = await createSourceEvidence(owner, {
+      sourceKey: "source-b",
+      defaultBranch: "develop",
+      refKey: "refs/heads/main",
+      repositoryPath: "packages/domain/src/context-record.ts",
+    });
+    const strongerB = await setAuthority(owner, sourceB.sourceId, {
+      scopeKind: "PATH_PREFIX",
+      scopeKey: "packages/domain",
+      refSelector: "EXACT_REF",
+      refKey: "refs/heads/main",
+    });
+    expect(await resolveAuthority(owner, sourceA.evidence)).toEqual({
+      assignmentId: strongerB,
+      sourceId: sourceB.sourceId,
+      qualification: "EFFECTIVE",
+    });
+    expect(
+      (await owner.service.list(owner.context, owner.projectId)).find(
+        (row) => row.contextRecordId === created.contextRecordId,
+      ),
+    ).toMatchObject({ freshness: "AUTHORITY_CHANGED", sourceAuthorityAssignmentId: authorityA });
+    const provenance = (
+      await sql<{
+        authorityId: string;
+      }>`select source_authority_assignment_id::text as "authorityId"
+        from memoid.context_record_evidence_provenance
+        where context_record_id=${created.contextRecordId}::uuid`.execute(isolated.db)
+    ).rows[0];
+    expect(provenance?.authorityId).toBe(authorityA);
   });
 
   it("applies exact-ref then default-branch then any-ref precedence", async () => {

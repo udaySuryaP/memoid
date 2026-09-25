@@ -73,6 +73,8 @@ describe("Stage 10H Context security boundary", () => {
     expect(migration).toContain("create function memoid.resolve_effective_source_authority");
     expect(migration).toContain("create function memoid.put_context_record_v2");
     expect(migration).toContain("from memoid.resolve_effective_source_authority(");
+    expect(migration).toContain("target_connection.source_id=a.source_id");
+    expect(migration).toContain("a.source_id=target.evidence_source_id");
     expect(adapter).toContain("left join lateral memoid.resolve_effective_source_authority(");
     expect(adapter).toContain("from memoid.put_context_record_v2(");
     expect(migration).toContain("p_source_authority_assignment_id");

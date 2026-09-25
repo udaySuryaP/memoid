@@ -1,5 +1,5 @@
 import { migrateToLatest } from "@memoid/db";
-import { createBoss, enqueueSourceIngestionSignal } from "@memoid/jobs";
+import { createBoss, enqueueSourceIngestionSignal, sourceIngestionQueue } from "@memoid/jobs";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { startProductionSourceIngestionRuntime } from "../../apps/worker/src/runtime.js";
@@ -25,10 +25,15 @@ suite("AUDIT-1A production ingestion runtime", () => {
   let boss: ReturnType<typeof createBoss>;
   const repositoryId = "910000001";
   let revision = "a".repeat(40);
+  let transientObservationFailures = 0;
   let sourceId: string;
 
   const provider: SourceIngestionProviderPort = {
     async observeRef(_connection, refKey) {
+      if (transientObservationFailures > 0) {
+        transientObservationFailures -= 1;
+        throw new Error("synthetic transient provider failure");
+      }
       return {
         externalRevision: revision,
         isDefaultRef: refKey === "refs/heads/main",
@@ -150,4 +155,123 @@ suite("AUDIT-1A production ingestion runtime", () => {
       { timeout: 20_000, interval: 250 },
     );
   });
+
+  it("uses pg-boss retry after a transient failure without advancing the frontier early", async () => {
+    revision = "c".repeat(40);
+    transientObservationFailures = 1;
+    const signal = {
+      kind: "SOURCE_INGESTION_SIGNAL" as const,
+      trigger: "GITHUB_WEBHOOK" as const,
+      appId: "123",
+      installationId: "456",
+      repositoryId,
+      refKey: "refs/heads/main",
+      deliveryId: "delivery-real-pg-boss-retry",
+    };
+    const jobId = await boss.send(sourceIngestionQueue, signal, {
+      retryLimit: 2,
+      retryDelay: 1,
+      retryBackoff: false,
+      singletonKey: `github:${signal.deliveryId}`,
+      singletonSeconds: 86_400,
+    });
+    expect(jobId).toBeTruthy();
+
+    await vi.waitFor(() => expect(transientObservationFailures).toBe(0), {
+      timeout: 10_000,
+      interval: 25,
+    });
+    const afterFailure = (
+      await sql<{ evidence: string; observed: string; ingested: string }>`select
+        (select count(*)::text from memoid.evidence_references where source_id=${sourceId}::uuid) evidence,
+        (select max(observed_sequence)::text from memoid.source_frontier_states) observed,
+        (select max(ingested_sequence)::text from memoid.source_frontier_states) ingested`.execute(
+        isolated.db,
+      )
+    ).rows[0]!;
+    expect(afterFailure).toEqual({ evidence: "2", observed: "2", ingested: "2" });
+
+    await vi.waitFor(
+      async () => {
+        const row = (
+          await sql<{
+            dispositions: string;
+            evidence: string;
+            observed: string;
+            ingested: string;
+          }>`select
+            (select count(*)::text from memoid.source_ingestion_dispositions
+              where source_id=${sourceId}::uuid) dispositions,
+            (select count(*)::text from memoid.evidence_references
+              where source_id=${sourceId}::uuid) evidence,
+            (select max(observed_sequence)::text from memoid.source_frontier_states) observed,
+            (select max(ingested_sequence)::text from memoid.source_frontier_states) ingested`.execute(
+            isolated.db,
+          )
+        ).rows[0]!;
+        expect(row).toEqual({ dispositions: "3", evidence: "3", observed: "3", ingested: "3" });
+      },
+      { timeout: 20_000, interval: 100 },
+    );
+    const completedJob = await boss.getJobById(sourceIngestionQueue, jobId!);
+    expect(completedJob).toMatchObject({ state: "completed", retryCount: 1 });
+    await expect(enqueueSourceIngestionSignal(boss, signal)).resolves.toBeNull();
+    const duplicateSafe = (
+      await sql<{ dispositions: string; evidence: string; ingested: string }>`select
+        (select count(*)::text from memoid.source_ingestion_dispositions
+          where source_id=${sourceId}::uuid) dispositions,
+        (select count(*)::text from memoid.evidence_references
+          where source_id=${sourceId}::uuid) evidence,
+        (select max(ingested_sequence)::text from memoid.source_frontier_states) ingested`.execute(
+        isolated.db,
+      )
+    ).rows[0]!;
+    expect(duplicateSafe).toEqual({ dispositions: "3", evidence: "3", ingested: "3" });
+  });
+
+  it("emits scheduled recovery through pg-boss into the production ingestion worker", async () => {
+    const scheduleKey = "source-ingestion-recovery/123";
+    expect(await boss.getSchedules(sourceIngestionQueue, scheduleKey)).toEqual([
+      expect.objectContaining({
+        name: sourceIngestionQueue,
+        key: scheduleKey,
+        cron: "*/5 * * * *",
+        data: {
+          kind: "SOURCE_INGESTION_SIGNAL",
+          trigger: "RECOVERY_SCAN",
+          appId: "123",
+        },
+      }),
+    ]);
+
+    revision = "d".repeat(40);
+    await boss.schedule(
+      sourceIngestionQueue,
+      "* * * * *",
+      { kind: "SOURCE_INGESTION_SIGNAL", trigger: "RECOVERY_SCAN", appId: "123" },
+      { tz: "UTC", key: scheduleKey },
+    );
+    await vi.waitFor(
+      async () => {
+        const row = (
+          await sql<{
+            dispositions: string;
+            evidence: string;
+            observed: string;
+            ingested: string;
+          }>`select
+              (select count(*)::text from memoid.source_ingestion_dispositions
+                where source_id=${sourceId}::uuid) dispositions,
+              (select count(*)::text from memoid.evidence_references
+                where source_id=${sourceId}::uuid) evidence,
+              (select max(observed_sequence)::text from memoid.source_frontier_states) observed,
+              (select max(ingested_sequence)::text from memoid.source_frontier_states) ingested`.execute(
+            isolated.db,
+          )
+        ).rows[0]!;
+        expect(row).toEqual({ dispositions: "4", evidence: "4", observed: "4", ingested: "4" });
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+  }, 50_000);
 });
