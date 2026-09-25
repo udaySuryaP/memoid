@@ -15,6 +15,7 @@ export * from "./github-source.js";
 export * from "./source-ingestion.js";
 export * from "./source-authority.js";
 export * from "./context-record.js";
+export * from "./conflict-uncertainty.js";
 
 export interface GitHubAdapterDependencies {
   readonly app: App;

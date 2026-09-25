@@ -403,6 +403,89 @@ export interface ContextRecordSourceCoverageTable extends ScopedRow {
   recorded_at: Timestamp;
 }
 
+export interface IntegrityConflictsTable extends ScopedRow {
+  id: Generated<string>;
+  context_identity_id: string;
+  created_at: Timestamp;
+}
+
+export interface ConflictOccurrencesTable extends ScopedRow {
+  id: Generated<string>;
+  conflict_id: string;
+  context_identity_id: string;
+  occurrence_version: Int8;
+  lifecycle_state: "ACTIVE" | "ENDED";
+  classification_key: "MATERIAL_CONTRADICTION";
+  participant_set_hash: Hash;
+  ending_reason:
+    "INPUTS_NO_LONGER_CONFLICT" | "PARTICIPANTS_SUPERSEDED" | "REVIEWED_RESOLUTION" | null;
+  resolved_by_context_revision_id: string | null;
+  recorded_by_actor_id: string;
+  idempotency_record_id: string;
+  correlation_id: string;
+  causation_id: string | null;
+  occurred_at: Timestamp;
+}
+
+export interface ConflictParticipantsTable extends ScopedRow {
+  conflict_id: string;
+  conflict_occurrence_id: string;
+  participant_ordinal: number;
+  participant_kind: "SOURCE_EVIDENCE" | "WORKING_CONTEXT" | "REVIEWED_CONTEXT";
+  evidence_reference_id: string | null;
+  working_context_item_id: string | null;
+  context_record_id: string | null;
+  source_id: string | null;
+  effective_authority_assignment_id: string | null;
+  source_qualification: string | null;
+  claim_fingerprint: Hash;
+  recorded_at: Timestamp;
+}
+
+export interface ConflictCurrentStatesTable extends ScopedRow {
+  conflict_id: string;
+  current_occurrence_id: string;
+  occurrence_version: Int8;
+  lifecycle_state: "ACTIVE" | "ENDED";
+  updated_at: Timestamp;
+}
+
+export interface IntegrityUncertaintiesTable extends ScopedRow {
+  id: Generated<string>;
+  context_identity_id: string;
+  target_kind: "SEMANTIC_IDENTITY" | "SOURCE_EVIDENCE" | "WORKING_CONTEXT" | "REVIEWED_CONTEXT";
+  evidence_reference_id: string | null;
+  working_context_item_id: string | null;
+  context_record_id: string | null;
+  created_at: Timestamp;
+}
+
+export interface UncertaintyOccurrencesTable extends ScopedRow {
+  id: Generated<string>;
+  uncertainty_id: string;
+  context_identity_id: string;
+  occurrence_version: Int8;
+  lifecycle_state: "ACTIVE" | "ENDED";
+  reason_key: string | null;
+  basis_evidence_reference_id: string | null;
+  source_qualification: string | null;
+  ending_reason: string | null;
+  resolved_by_context_revision_id: string | null;
+  recorded_by_actor_id: string;
+  idempotency_record_id: string;
+  correlation_id: string;
+  causation_id: string | null;
+  occurred_at: Timestamp;
+}
+
+export interface UncertaintyCurrentStatesTable extends ScopedRow {
+  uncertainty_id: string;
+  current_occurrence_id: string;
+  occurrence_version: Int8;
+  lifecycle_state: "ACTIVE" | "ENDED";
+  updated_at: Timestamp;
+}
+
 export interface ActorsTable {
   id: Generated<string>;
   workspace_id: string;
@@ -592,6 +675,13 @@ export interface MemoidDatabase {
   "memoid.context_record_candidate_provenance": ContextRecordCandidateProvenanceTable;
   "memoid.context_record_source_provenance": ContextRecordSourceProvenanceTable;
   "memoid.context_record_source_coverage": ContextRecordSourceCoverageTable;
+  "memoid.integrity_conflicts": IntegrityConflictsTable;
+  "memoid.conflict_occurrences": ConflictOccurrencesTable;
+  "memoid.conflict_participants": ConflictParticipantsTable;
+  "memoid.conflict_current_states": ConflictCurrentStatesTable;
+  "memoid.integrity_uncertainties": IntegrityUncertaintiesTable;
+  "memoid.uncertainty_occurrences": UncertaintyOccurrencesTable;
+  "memoid.uncertainty_current_states": UncertaintyCurrentStatesTable;
   "memoid.actors": ActorsTable;
   "memoid.operations": OperationsTable;
   "memoid.operation_attempts": OperationAttemptsTable;
