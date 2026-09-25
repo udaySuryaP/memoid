@@ -1,4 +1,4 @@
-import { PgBoss, type Job } from "pg-boss";
+import { PgBoss, type ConstructorOptions, type Job } from "pg-boss";
 
 export type JobBoss = PgBoss;
 
@@ -21,8 +21,15 @@ export type SourceIngestionSignal =
       readonly appId: string;
     };
 
-export function createBoss(connectionString: string, max = 10): PgBoss {
-  return new PgBoss({ connectionString, schema: "pgboss", max });
+export function createBoss(
+  connectionString: string,
+  max = 10,
+  scheduling: Pick<
+    ConstructorOptions,
+    "cronMonitorIntervalSeconds" | "cronWorkerIntervalSeconds"
+  > = {},
+): PgBoss {
+  return new PgBoss({ connectionString, schema: "pgboss", max, ...scheduling });
 }
 export async function startSyntheticWorker(
   boss: PgBoss,

@@ -97,7 +97,10 @@ suite("AUDIT-1A production ingestion runtime", () => {
     );
     repository = new PostgresSourceIngestionRepository(appUrl, 1);
     runtimeRepository = new PostgresSourceIngestionRuntimeRepository(appUrl, 1);
-    boss = createBoss(isolated.connectionString, 2);
+    boss = createBoss(isolated.connectionString, 2, {
+      cronMonitorIntervalSeconds: 1,
+      cronWorkerIntervalSeconds: 1,
+    });
     await boss.start();
     await startProductionSourceIngestionRuntime({
       boss,
@@ -268,7 +271,7 @@ suite("AUDIT-1A production ingestion runtime", () => {
         ).rows[0]!;
         expect(row).toEqual({ dispositions: "4", evidence: "4", observed: "4", ingested: "4" });
       },
-      { timeout: 45_000, interval: 250 },
+      { timeout: 15_000, interval: 100 },
     );
-  }, 50_000);
+  }, 20_000);
 });
