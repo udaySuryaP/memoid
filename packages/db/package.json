@@ -8,7 +8,7 @@
     "./auth-runtime": "./src/auth-runtime.ts"
   },
   "dependencies": {
-    "kysely": "0.29.5",
+    "kysely": "0.29.6",
     "pg": "8.23.0"
   },
   "devDependencies": {
