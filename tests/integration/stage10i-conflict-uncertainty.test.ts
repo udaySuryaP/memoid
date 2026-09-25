@@ -315,6 +315,26 @@ suite("Stage 10I Conflict and Uncertainty PostgreSQL", () => {
     ).assignmentId as SourceAuthorityAssignmentId;
   }
 
+  async function observeRef(f: Fixture, sourceId: SourceId, refKey: string): Promise<void> {
+    sequence += 1;
+    const unit = (
+      await sql<{
+        id: string;
+      }>`insert into memoid.source_frontier_units(workspace_id,project_id,source_id,
+        scope_key,ref_key) values(${f.workspaceId}::uuid,${f.projectId}::uuid,${sourceId}::uuid,
+        'repository',${refKey}) returning id::text`.execute(isolated.db)
+    ).rows[0]!.id;
+    await sql`insert into memoid.source_observations(workspace_id,project_id,
+      frontier_unit_id,observation_sequence,external_revision,observed_at)
+      values(${f.workspaceId}::uuid,${f.projectId}::uuid,${unit}::uuid,1,
+      ${sequence.toString(16).padStart(40, "d").slice(-40)},clock_timestamp())`.execute(
+      isolated.db,
+    );
+    await sql`insert into memoid.source_frontier_states(workspace_id,project_id,frontier_unit_id,
+      observed_sequence,desired_sequence,ingested_sequence) values(${f.workspaceId}::uuid,
+      ${f.projectId}::uuid,${unit}::uuid,1,1,1)`.execute(isolated.db);
+  }
+
   const proof = <T extends Record<string, unknown>>(key: string, base: T) => ({
     idempotencyKeyHash: hashIdempotencyKey(key.padEnd(40, "i")),
     requestFingerprint: fingerprintLifecycleRequest(base),
@@ -432,6 +452,7 @@ suite("Stage 10I Conflict and Uncertainty PostgreSQL", () => {
     const current = await reviewed(owner, "PostgreSQL");
     const sourceA = await evidence(owner, "source-a", "main", "refs/heads/main", 61);
     const sourceB = await evidence(owner, "source-b", "develop", "refs/heads/develop", 62);
+    await observeRef(owner, sourceA.sourceId, "refs/heads/develop");
     await authority(owner, sourceA.sourceId);
     const base = {
       projectId: owner.projectId,
