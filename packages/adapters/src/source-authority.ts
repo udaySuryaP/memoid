@@ -79,26 +79,9 @@ export class PostgresSourceAuthorityRepository implements SourceAuthorityReposit
           s.authority_category || ':' || s.authority_facet as "categoryFacet",
           s.scope_kind as "scopeKind", s.scope_key as "scopeKey",
           s.ref_selector as "refSelector", s.ref_key as "refKey", s.version::text as version,
-          case
-            when c.source_id is null or c.connection_state <> 'ACTIVE' then 'SOURCE_UNAVAILABLE'
-            when s.ref_selector = 'DEFAULT_BRANCH'
-              and a.source_default_ref_snapshot <> 'refs/heads/' || c.default_branch
-              then 'REVALIDATION_REQUIRED'
-            when not exists (select 1 from memoid.source_observations o
-              join memoid.source_frontier_units observed_unit
-                on observed_unit.workspace_id = o.workspace_id
-                and observed_unit.project_id = o.project_id and observed_unit.id = o.frontier_unit_id
-              where o.workspace_id = s.workspace_id and o.project_id = s.project_id
-                and observed_unit.source_id = a.source_id) then 'SOURCE_UNOBSERVED'
-            when exists (select 1 from memoid.source_frontier_states fs
-              join memoid.source_frontier_units fu on fu.workspace_id = fs.workspace_id
-                and fu.project_id = fs.project_id and fu.id = fs.frontier_unit_id
-              where fs.workspace_id = s.workspace_id and fs.project_id = s.project_id
-                and fu.source_id = a.source_id
-                and coalesce(fs.desired_sequence,0) > coalesce(fs.ingested_sequence,0))
-              then 'SOURCE_BEHIND'
-            else 'EFFECTIVE'
-          end as qualification,
+          memoid.qualify_source_authority_assignment(
+            s.workspace_id,s.project_id,a.id,null
+          ) as qualification,
           a.effective_at as "effectiveAt"
         from memoid.source_authority_scopes s
         join memoid.source_authority_assignments a on a.workspace_id = s.workspace_id

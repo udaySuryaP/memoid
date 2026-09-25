@@ -88,7 +88,8 @@ export class PostgresContextRecordRepository implements ContextRecordRepository 
         ep.source_authority_assignment_id::text as "sourceAuthorityAssignmentId",r.reviewed_at as "reviewedAt",
         ep.context_record_id is not null as "sourceBacked",
         coalesce(g.connection_state='ACTIVE',false) as "sourceAvailable",
-        coalesce(s.current_assignment_id=ep.source_authority_assignment_id,false) as "authorityCurrent",
+        coalesce(resolved.assignment_id=ep.source_authority_assignment_id
+          and resolved.qualification='EFFECTIVE',false) as "authorityCurrent",
         coalesce(s.ref_selector<>'DEFAULT_BRANCH' or (a.source_default_ref_snapshot='refs/heads/'||g.default_branch),false) as "defaultRefCurrent",
         ep.covered_observation_sequence::text as "coveredSequence",fs.ingested_sequence::text as "ingestedSequence"
       from memoid.context_identities i join memoid.context_identity_current_records h
@@ -100,6 +101,9 @@ export class PostgresContextRecordRepository implements ContextRecordRepository 
       left join memoid.source_authority_scopes s on s.workspace_id=a.workspace_id and s.project_id=a.project_id and s.id=a.authority_scope_id
       left join memoid.github_source_connections g on g.workspace_id=ep.workspace_id and g.project_id=ep.project_id and g.source_id=ep.source_id
       left join memoid.source_frontier_states fs on fs.workspace_id=ep.workspace_id and fs.project_id=ep.project_id and fs.frontier_unit_id=ep.frontier_unit_id
+      left join lateral memoid.resolve_effective_source_authority(
+        ep.workspace_id,ep.project_id,i.facet_key,ep.evidence_reference_id
+      ) resolved on ep.context_record_id is not null
       where i.workspace_id=${context.workspaceId}::uuid and i.project_id=${projectId}::uuid
       order by i.subject_key,i.scope_key,i.facet_key,i.predicate_key`.execute(trx)
       ).rows;
@@ -160,7 +164,7 @@ export class PostgresContextRecordRepository implements ContextRecordRepository 
           }>`select
         context_identity_id::text as "contextIdentityId",context_record_id::text as "contextRecordId",
         identity_version::text as "identityVersion",record_version::text as "recordVersion",replayed
-        from memoid.put_context_record(${Buffer.from(context.sessionCredentialHash)}::bytea,${command.projectId}::uuid,
+        from memoid.put_context_record_v2(${Buffer.from(context.sessionCredentialHash)}::bytea,${command.projectId}::uuid,
         ${command.identity.subject}::varchar,${command.identity.scope}::varchar,${command.identity.facet}::varchar,${command.identity.predicate}::varchar,
         ${command.expectedIdentityVersion},${command.expectedCurrentRecordId ?? null}::uuid,${JSON.stringify(command.payload)}::jsonb,
         ${command.originKind}::varchar,${command.evidenceReferenceId ?? null}::uuid,${command.sourceAuthorityAssignmentId ?? null}::uuid,

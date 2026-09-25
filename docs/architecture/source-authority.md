@@ -37,6 +37,22 @@ a later provider default-branch change makes the assignment
 `REVALIDATION_REQUIRED` rather than silently following it. Unavailable or stale
 winning assignments never fall back to broader/lower-trust state.
 
+AUDIT-1A centralizes live qualification in a database resolver used by Context
+writes and reads. Exact-ref and default-branch assignments inspect only their
+applicable ref. An `ANY_REF` assignment is effective when at least one observed
+applicable ref is current; an unrelated lagging ref does not make every ref
+unusable. When resolving authority for a concrete Evidence Reference, even an
+`ANY_REF` assignment is qualified against that Evidence ref. Historical Context
+provenance remains immutable when a later, stronger assignment becomes the
+effective winner.
+
+Projects may contain multiple GitHub Sources. Resolution binds each candidate
+assignment to that candidate Source's connection and provider metadata.
+`DEFAULT_BRANCH` is Source-relative and therefore applies only to Evidence from
+the same Source on that Source's current default ref. Explicit `EXACT_REF` and
+`ANY_REF` scopes may still win across Sources through the normal ref/path
+precedence rules; a true equal-best result remains ambiguous and fails closed.
+
 Source Authority remains evidence authority only. It grants no instruction,
 authentication, access, semantic-review, system-execution, provider, or Context
 mutation authority.

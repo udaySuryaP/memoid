@@ -19,7 +19,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.check.json && turbo run typecheck",
     "test": "vitest run --exclude \"tests/integration/**\"",
     "test:security": "vitest run tests/security",
-    "test:integration": "vitest run tests/integration",
+    "test:integration": "vitest run tests/integration --maxWorkers=2",
     "test:e2e": "corepack pnpm --filter @memoid/web build && node tests/e2e/run.mjs",
     "test:e2e:update": "corepack pnpm --filter @memoid/web build && node tests/e2e/run.mjs --update-snapshots",
     "traceability:generate": "node --experimental-strip-types scripts/stage7-screen-traceability.ts",

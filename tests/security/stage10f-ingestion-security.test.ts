@@ -10,6 +10,9 @@ const applicationPath = new URL(
   "../../packages/application/src/source-ingestion.ts",
   import.meta.url,
 );
+const workerPath = new URL("../../apps/worker/src/index.ts", import.meta.url);
+const runtimePath = new URL("../../apps/worker/src/runtime.ts", import.meta.url);
+const jobsPath = new URL("../../packages/jobs/src/index.ts", import.meta.url);
 
 describe("Stage 10F ingestion security boundary", () => {
   it("persists structured references and hashes without repository contents or generic evidence JSON", async () => {
@@ -63,5 +66,21 @@ describe("Stage 10F ingestion security boundary", () => {
     expect(application).toContain('context.actor.kind !== "MEMOID_SYSTEM"');
     expect(application).not.toMatch(/authorize\(|PROJECT_CONTROL|sessionCredentialHash/u);
     expect(application).not.toMatch(/WorkingContext|ContextRecord|ChangeProposal|reconcil/iu);
+  });
+
+  it("registers the production ingestion application on the durable worker queue", async () => {
+    const [worker, runtime, jobs] = await Promise.all([
+      readFile(workerPath, "utf8"),
+      readFile(runtimePath, "utf8"),
+      readFile(jobsPath, "utf8"),
+    ]);
+    expect(worker).toContain("new SourceIngestionService");
+    expect(worker).toContain("new GitHubSourceIngestionAdapter");
+    expect(worker).toContain("startProductionSourceIngestionRuntime");
+    expect(runtime).toContain("startSourceIngestionWorker");
+    expect(runtime).toContain("scheduleSourceIngestionRecovery");
+    expect(jobs).toContain('sourceIngestionQueue = "source.ingestion"');
+    expect(jobs).toContain('trigger: "GITHUB_WEBHOOK"');
+    expect(jobs).toContain('trigger: "RECOVERY_SCAN"');
   });
 });

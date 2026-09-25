@@ -82,5 +82,15 @@ stores only controlled failure codes and sanitized metadata. Installation
 tokens, authorization headers, repository paths, contents, provider payloads,
 and stack traces never enter audit metadata.
 
+## Production runtime
+
+The Fastify GitHub webhook boundary authenticates push deliveries and enqueues
+only stable repository/ref identity as a refetch signal. The pg-boss worker owns
+the production consumer, reconstructs the Project-scoped worker context through
+a narrow database function, and invokes the same `SourceIngestionService` used
+by startup and five-minute recovery scans. Job retries and durable frontier
+state recover process restarts, expired leases, duplicate deliveries, and lost
+wakeups; webhook revision fields never bypass authoritative provider refetch.
+
 See the [Stage 10F challenge](../implementation/stage10f-ingestion-evidence-challenge.md)
 for the F1–F12 decisions and rejected alternatives.

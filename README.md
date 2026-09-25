@@ -8,7 +8,11 @@ AI-assisted development is often fragmented across tools, sessions, and reposito
 
 Memoid makes those trust boundaries explicit. It combines user checkpoints, repository evidence, provenance, reconciliation, and project-level review policy so future AI clients can resume from context that is both useful and inspectable.
 
-## Product loop
+## Target product loop
+
+The complete loop below is the product direction; reconciliation, Context Pack
+delivery, checkpoints, and cross-AI client delivery are planned later-stage
+capabilities and are not presented as implemented today.
 
 1. An authorized client resumes with a qualified Context Pack for the current task.
 2. The user works and explicitly checkpoints meaningful Candidate Evidence.
@@ -17,7 +21,7 @@ Memoid makes those trust boundaries explicit. It combines user checkpoints, repo
 
 This durable cross-AI Project-context continuity loop is founder-directed. GitHub is complementary authoritative Source evidence for applicable implementation facts, not the primary product loop.
 
-## Architecture at a glance
+## Target architecture at a glance
 
 - TypeScript modular monolith managed with pnpm and Turborepo.
 - Next.js web application, Fastify API/MCP boundary, and a separate worker process around one Domain/Application Core.
@@ -31,15 +35,23 @@ Memoid is **not market-validated**. Stage 2 concluded **DO NOT BUILD / KILL** be
 
 ## Repository contract baseline
 
-This repository's implementation contract is synchronized through the **HQ-reconciled Stage 9C** product/domain/security/engine/workflow baseline. Repository files define implementation boundaries, ordering, proof gates, and drift-prevention contracts; they do **not independently authorize a current workstream**.
+This repository's implementation contract is synchronized through the **HQ-reconciled Stage 9C** product/domain/security/engine/workflow baseline. Repository files define implementation boundaries, ordering, proof gates, and drift-prevention contracts; this repository does not independently authorize a current workstream.
 
 Before implementing any product vertical, verify explicit authorization against the current canonical `00 - MEMOID HQ` / project state. A later HQ authorization of 10A, 10B, or another vertical does not require a repository status-only patch: execution authorization is owned by HQ, while this repository owns the durable implementation contract.
 
-This repository contains the production-oriented foundation, repository-native implementation contract, the Stage 10A domain/schema implementation, the Stage 10B Actor/Audit/idempotency/Operation foundations, the bounded Stage 10C identity/session/authorization/RLS implementation, the Stage 10D personal Workspace/private Project lifecycle, the Stage 10E GitHub Source/provider identity boundary, and the Stage 10F ingestion/Evidence Reference boundary. The repository does not independently authorize any current or later product vertical.
+This repository contains the production-oriented foundation and implementations
+through Stage 10H: domain/schema; Actor, Audit, idempotency, and Operations;
+identity/session/authorization/RLS; personal Workspace and private Project;
+GitHub Source identity; operational server-controlled ingestion and Evidence
+References; Source Authority; and Context Identity/Record/provenance. AUDIT-1A
+adds the bounded production-ingestion and authority-currentness corrections.
+Conflict/Uncertainty, reconciliation, retrieval, Context Packs, and MCP product
+delivery are not implemented here. The repository does not independently
+authorize any current or later product vertical.
 
 ## Architecture foundation
 
-- TypeScript modular monolith in a private pnpm/Turborepo monorepo.
+- TypeScript modular monolith in a public pnpm/Turborepo repository.
 - Separate Next.js web, Fastify API/MCP, and pg-boss worker process roles around one Domain/Application Core; these roles are not microservices.
 - PostgreSQL 18 with Kysely/`pg`; application authorization is primary and transaction-scoped RLS is defense-in-depth.
 - Stage 10A adds the provider-free domain kernel and deny-by-default `memoid` schema for the four integrity planes, versioned Project review policy, gap-safe Candidate frontier, per-Source/ref frontiers, Context Identity/currentness, and provenance/coverage foundations.
@@ -48,6 +60,13 @@ This repository contains the production-oriented foundation, repository-native i
 - Stage 10D formalizes the immutable one-Account personal Workspace, adds active/private source-less Project creation and bounded metadata updates, initializes MANUAL-by-default review policy, and proves current-session revalidation, Actor attribution, audit, idempotent replay, optimistic concurrency, and archived-resource denial. It adds no team membership, invitation, GitHub, Source, archive command, delete, or restore behavior.
 - Stage 10E establishes Memoid-owned GitHub Source identity, short-lived least-privilege GitHub App verification, authenticated lifecycle signals, and fail-closed connection state without ingesting repository contents.
 - Stage 10F adds authoritative per-ref repository observation, bounded deterministic incremental extraction, revision-qualified Evidence References, and gap-safe fenced ingestion completion. It stores no repository mirror/content and performs no authority assignment, semantic reconciliation, or Context promotion.
+- Stage 10G adds immutable scoped Source Authority assignments, deterministic
+  ref/path precedence, and fail-closed live qualification.
+- Stage 10H adds stable Context identities, immutable reviewed records and
+  provenance, revision/current-head semantics, and read-time freshness.
+- AUDIT-1A wires signed push, startup, and scheduled recovery signals into the
+  production ingestion worker and makes Context write/read authority resolution
+  and Source health ref-local.
 - MCP v2 split SDK packages with remote Streamable HTTP as the hosted adapter direction.
 - Read-only GitHub App using selective Source ingestion; no durable repository mirror.
 - Ordinary external MCP/API machine clients cannot trigger Source refresh or synchronization in V1. Source synchronization is Memoid/server-controlled.
@@ -124,7 +143,10 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-`pnpm qa` runs the normal format, lint/dependency-boundary, type, traceability, unit, and production-build checks. The GitHub **Security** workflow additionally runs `test:security`, SAST, Secretlint, dependency audit, and gitleaks. GitHub dependency review remains capability-gated; see [repository governance](./docs/governance/repository.md).
+`pnpm qa` runs the normal format, lint/dependency-boundary, type, traceability,
+unit, and production-build checks. The GitHub **Security** workflow additionally
+runs `test:security`, SAST, Secretlint, dependency audit, gitleaks, and pull-request
+dependency review; see [repository governance](./docs/governance/repository.md).
 
 ## Governance
 

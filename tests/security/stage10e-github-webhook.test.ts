@@ -1,4 +1,7 @@
-import { authenticateGitHubLifecycleSignals } from "../../packages/adapters/src/github-source.js";
+import {
+  authenticateGitHubLifecycleSignals,
+  authenticateGitHubSourceChangeSignal,
+} from "../../packages/adapters/src/github-source.js";
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
@@ -46,6 +49,33 @@ describe("Stage 10E GitHub webhook authentication", () => {
         secrets: [secret],
       }).map((signal) => signal.repositoryId),
     ).toEqual(["11", "12"]);
+  });
+
+  it("authenticates push signals without trusting their revision as Source truth", () => {
+    const payload = Buffer.from(
+      JSON.stringify({
+        ref: "refs/heads/main",
+        after: "f".repeat(40),
+        installation: { id: 456, app_id: 123 },
+        repository: { id: 789 },
+      }),
+    );
+    expect(
+      authenticateGitHubSourceChangeSignal({
+        payload,
+        signature: signed(payload),
+        deliveryId: "00000000-0000-4000-8000-000000000003",
+        event: "push",
+        expectedAppId: "123",
+        secrets: [secret],
+      }),
+    ).toEqual({
+      appId: "123",
+      installationId: "456",
+      repositoryId: "789",
+      refKey: "refs/heads/main",
+      deliveryId: "00000000-0000-4000-8000-000000000003",
+    });
   });
 
   it("rejects forged, unsupported, malformed, and oversized deliveries", () => {
