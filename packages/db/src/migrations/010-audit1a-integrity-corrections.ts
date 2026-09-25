@@ -4,6 +4,14 @@ import type { Migration } from "kysely/migration";
 const putContextRecordSignature =
   "(bytea,uuid,varchar,varchar,varchar,varchar,bigint,uuid,jsonb,varchar,uuid,uuid,bytea,bytea,uuid,uuid)";
 
+async function multiSourceConnections(db: Kysely<unknown>): Promise<void> {
+  await sql`alter table memoid.github_source_connections
+    drop constraint github_source_connections_pkey`.execute(db);
+  await sql`alter table memoid.github_source_connections
+    add constraint github_source_connections_pkey
+    primary key (workspace_id, project_id, source_id)`.execute(db);
+}
+
 async function authorityResolution(db: Kysely<unknown>): Promise<void> {
   await sql`create function memoid.qualify_source_authority_assignment(
       p_workspace_id uuid, p_project_id uuid, p_assignment_id uuid,
@@ -374,6 +382,7 @@ async function permissions(db: Kysely<unknown>): Promise<void> {
 export const audit1aIntegrityCorrectionsMigration: Migration = {
   async up(db) {
     await sql`set local role memoid_owner`.execute(db);
+    await multiSourceConnections(db);
     await authorityResolution(db);
     await runtimeDiscovery(db);
     await contextMutation(db);
@@ -390,6 +399,12 @@ export const audit1aIntegrityCorrectionsMigration: Migration = {
         then
           raise exception 'STAGE10H_ROLLBACK_REFUSED_POPULATED_CONTEXT_HISTORY';
         end if;
+        if exists (
+          select 1 from memoid.github_source_connections
+          group by workspace_id, project_id having count(*) > 1
+        ) then
+          raise exception 'AUDIT1A_ROLLBACK_REFUSED_MULTI_SOURCE_CONNECTIONS';
+        end if;
       end $$`.execute(db);
     await sql
       .raw(`drop function if exists memoid.put_context_record_v2${putContextRecordSignature}`)
@@ -403,6 +418,11 @@ export const audit1aIntegrityCorrectionsMigration: Migration = {
     await sql`drop function if exists memoid.qualify_source_authority_assignment(uuid,uuid,uuid,varchar)`.execute(
       db,
     );
+    await sql`alter table memoid.github_source_connections
+      drop constraint github_source_connections_pkey`.execute(db);
+    await sql`alter table memoid.github_source_connections
+      add constraint github_source_connections_pkey
+      primary key (workspace_id, project_id)`.execute(db);
     await sql`reset role`.execute(db);
   },
 };

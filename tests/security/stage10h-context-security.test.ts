@@ -71,6 +71,7 @@ describe("Stage 10H Context security boundary", () => {
       readFile(adapterPath, "utf8"),
     ]);
     expect(migration).toContain("create function memoid.resolve_effective_source_authority");
+    expect(migration).toContain("primary key (workspace_id, project_id, source_id)");
     expect(migration).toContain("create function memoid.put_context_record_v2");
     expect(migration).toContain("from memoid.resolve_effective_source_authority(");
     expect(migration).toContain("target_connection.source_id=a.source_id");

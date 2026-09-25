@@ -200,8 +200,7 @@ suite("AUDIT-1A production ingestion runtime", () => {
             observed: string;
             ingested: string;
           }>`select
-            (select count(*)::text from memoid.source_ingestion_dispositions
-              where source_id=${sourceId}::uuid) dispositions,
+            (select count(*)::text from memoid.source_ingestion_dispositions) dispositions,
             (select count(*)::text from memoid.evidence_references
               where source_id=${sourceId}::uuid) evidence,
             (select max(observed_sequence)::text from memoid.source_frontier_states) observed,
@@ -218,8 +217,7 @@ suite("AUDIT-1A production ingestion runtime", () => {
     await expect(enqueueSourceIngestionSignal(boss, signal)).resolves.toBeNull();
     const duplicateSafe = (
       await sql<{ dispositions: string; evidence: string; ingested: string }>`select
-        (select count(*)::text from memoid.source_ingestion_dispositions
-          where source_id=${sourceId}::uuid) dispositions,
+        (select count(*)::text from memoid.source_ingestion_dispositions) dispositions,
         (select count(*)::text from memoid.evidence_references
           where source_id=${sourceId}::uuid) evidence,
         (select max(ingested_sequence)::text from memoid.source_frontier_states) ingested`.execute(
@@ -260,8 +258,7 @@ suite("AUDIT-1A production ingestion runtime", () => {
             observed: string;
             ingested: string;
           }>`select
-              (select count(*)::text from memoid.source_ingestion_dispositions
-                where source_id=${sourceId}::uuid) dispositions,
+              (select count(*)::text from memoid.source_ingestion_dispositions) dispositions,
               (select count(*)::text from memoid.evidence_references
                 where source_id=${sourceId}::uuid) evidence,
               (select max(observed_sequence)::text from memoid.source_frontier_states) observed,
