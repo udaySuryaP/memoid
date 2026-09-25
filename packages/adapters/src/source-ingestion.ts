@@ -425,8 +425,8 @@ function securityContext(context: SourceIngestionContext) {
 
 export class PostgresSourceIngestionRepository implements SourceIngestionRepository {
   private readonly db: Kysely<MemoidDatabase>;
-  public constructor(connectionString: string) {
-    this.db = createDatabase(connectionString, 4);
+  public constructor(connectionString: string, poolSize = 4) {
+    this.db = createDatabase(connectionString, poolSize);
   }
 
   public async connection(
@@ -619,8 +619,8 @@ export interface SourceIngestionRuntimeTarget {
 export class PostgresSourceIngestionRuntimeRepository {
   private readonly db: Kysely<MemoidDatabase>;
 
-  public constructor(connectionString: string) {
-    this.db = createDatabase(connectionString, 2);
+  public constructor(connectionString: string, poolSize = 2) {
+    this.db = createDatabase(connectionString, poolSize);
   }
 
   public async listTargets(input: {

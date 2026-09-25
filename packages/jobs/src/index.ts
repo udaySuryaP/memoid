@@ -21,8 +21,8 @@ export type SourceIngestionSignal =
       readonly appId: string;
     };
 
-export function createBoss(connectionString: string): PgBoss {
-  return new PgBoss({ connectionString, schema: "pgboss" });
+export function createBoss(connectionString: string, max = 10): PgBoss {
+  return new PgBoss({ connectionString, schema: "pgboss", max });
 }
 export async function startSyntheticWorker(
   boss: PgBoss,

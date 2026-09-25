@@ -90,9 +90,9 @@ suite("AUDIT-1A production ingestion runtime", () => {
       'owner','repo','owner/repo','https://github.com/owner/repo','PRIVATE','main','ACTIVE',clock_timestamp())`.execute(
       isolated.db,
     );
-    repository = new PostgresSourceIngestionRepository(appUrl);
-    runtimeRepository = new PostgresSourceIngestionRuntimeRepository(appUrl);
-    boss = createBoss(isolated.connectionString);
+    repository = new PostgresSourceIngestionRepository(appUrl, 1);
+    runtimeRepository = new PostgresSourceIngestionRuntimeRepository(appUrl, 1);
+    boss = createBoss(isolated.connectionString, 2);
     await boss.start();
     await startProductionSourceIngestionRuntime({
       boss,
