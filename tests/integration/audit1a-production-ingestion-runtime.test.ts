@@ -1,5 +1,10 @@
 import { migrateToLatest } from "@memoid/db";
-import { createBoss, enqueueSourceIngestionSignal, sourceIngestionQueue } from "@memoid/jobs";
+import {
+  createBoss,
+  enqueueSourceIngestionSignal,
+  scheduleSourceIngestionRecovery,
+  sourceIngestionQueue,
+} from "@memoid/jobs";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { startProductionSourceIngestionRuntime } from "../../apps/worker/src/runtime.js";
@@ -160,6 +165,8 @@ suite("AUDIT-1A production ingestion runtime", () => {
   });
 
   it("uses pg-boss retry after a transient failure without advancing the frontier early", async () => {
+    await boss.unschedule(sourceIngestionQueue, "source-ingestion-recovery/123");
+    await boss.deleteQueuedJobs(sourceIngestionQueue);
     revision = "c".repeat(40);
     transientObservationFailures = 1;
     const signal = {
@@ -232,6 +239,7 @@ suite("AUDIT-1A production ingestion runtime", () => {
 
   it("emits scheduled recovery through pg-boss into the production ingestion worker", async () => {
     const scheduleKey = "source-ingestion-recovery/123";
+    await scheduleSourceIngestionRecovery(boss, "123");
     expect(await boss.getSchedules(sourceIngestionQueue, scheduleKey)).toEqual([
       expect.objectContaining({
         name: sourceIngestionQueue,
