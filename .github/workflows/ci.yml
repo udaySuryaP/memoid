@@ -24,6 +24,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm qa
+      - run: pnpm benchmark:reconciliation
   postgres:
     runs-on: ubuntu-latest
     services:
