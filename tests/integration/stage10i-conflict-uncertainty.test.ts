@@ -24,6 +24,7 @@ import type {
   AccountId,
   ContextIdentityId,
   ContextRecordId,
+  ContextRevisionId,
   EvidenceReferenceId,
   ProjectId,
   SourceAuthorityAssignmentId,
@@ -49,6 +50,7 @@ interface Fixture {
   projectId: ProjectId;
   context: Parameters<ConflictUncertaintyService["list"]>[0];
   integrity: ConflictUncertaintyService;
+  integrityRepository: PostgresConflictUncertaintyRepository;
   contextRecords: ContextRecordService;
   authority: SourceAuthorityService;
   repositories: Array<{ close(): Promise<void> }>;
@@ -179,6 +181,7 @@ suite("Stage 10I Conflict and Uncertainty PostgreSQL", () => {
       projectId: project.id,
       context,
       integrity: new ConflictUncertaintyService(integrityRepository),
+      integrityRepository,
       contextRecords: new ContextRecordService(contextRepository),
       authority: new SourceAuthorityService(authorityRepository),
       repositories: [
@@ -585,6 +588,115 @@ suite("Stage 10I Conflict and Uncertainty PostgreSQL", () => {
     expect(
       (await owner.integrity.list(owner.context, owner.projectId, false)).uncertainties[0]?.version,
     ).toBe(2);
+  });
+
+  it("rejects fabricated reviewed resolution through Stage 10I application and database mutations", async () => {
+    const first = await reviewed(owner, "PostgreSQL");
+    const workingItem = await working(owner, first.contextIdentityId, "SQLite");
+    const conflictBase = {
+      projectId: owner.projectId,
+      contextIdentityId: first.contextIdentityId,
+      expectedVersion: 0,
+      classification: "MATERIAL_CONTRADICTION" as const,
+      participants: [
+        { kind: "WORKING_CONTEXT" as const, workingContextItemId: workingItem },
+        { kind: "REVIEWED_CONTEXT" as const, contextRecordId: first.contextRecordId },
+      ],
+    };
+    const conflict = await owner.integrity.establishConflict(owner.context, {
+      ...conflictBase,
+      ...proof("reviewed-resolution-conflict", conflictBase),
+    });
+    const uncertaintyBase = {
+      projectId: owner.projectId,
+      contextIdentityId: first.contextIdentityId,
+      expectedVersion: 0,
+      target: { kind: "SEMANTIC_IDENTITY" as const, contextIdentityId: first.contextIdentityId },
+      reason: "AMBIGUOUS_INTERPRETATION" as const,
+    };
+    const uncertainty = await owner.integrity.establishUncertainty(owner.context, {
+      ...uncertaintyBase,
+      ...proof("reviewed-resolution-uncertainty", uncertaintyBase),
+    });
+    const revisionBase = {
+      projectId: owner.projectId,
+      identity: {
+        subject: "project",
+        scope: "architecture",
+        facet: "implementation_state:code",
+        predicate: "database",
+      },
+      expectedIdentityVersion: 1,
+      expectedCurrentRecordId: first.contextRecordId,
+      payload: { value: "PostgreSQL 18" },
+      originKind: "USER_NATIVE" as const,
+    };
+    const current = await owner.contextRecords.put(owner.context, {
+      ...revisionBase,
+      idempotencyKeyHash: hashIdempotencyKey("reviewed-resolution-revision".padEnd(40, "r")),
+      requestFingerprint: fingerprintLifecycleRequest(revisionBase),
+    });
+    const revisions = await sql<{ recordId: string; revisionId: string }>`select
+      id::text as "recordId",context_revision_id::text as "revisionId"
+      from memoid.context_records where workspace_id=${owner.workspaceId}::uuid
+        and project_id=${owner.projectId}::uuid
+        and id in (${first.contextRecordId}::uuid,${current.contextRecordId}::uuid)`.execute(
+      isolated.db,
+    );
+    const revisionByRecord = new Map(
+      revisions.rows.map((row) => [row.recordId, row.revisionId as ContextRevisionId]),
+    );
+
+    for (const [label, contextRevisionId] of [
+      ["older", revisionByRecord.get(first.contextRecordId)!],
+      ["current", revisionByRecord.get(current.contextRecordId)!],
+    ] as const) {
+      const conflictEnd = {
+        projectId: owner.projectId,
+        conflictId: conflict.conflictId,
+        expectedVersion: 1,
+        reason: "REVIEWED_RESOLUTION" as const,
+        resolvedByContextRevisionId: contextRevisionId,
+      };
+      await expect(
+        owner.integrity.endConflict(owner.context, {
+          ...conflictEnd,
+          ...proof(`application-conflict-${label}`, conflictEnd),
+        }),
+      ).rejects.toThrow("Stage 10M");
+      await expect(
+        owner.integrityRepository.recordConflict(owner.context, {
+          ...conflictEnd,
+          ...proof(`database-conflict-${label}`, conflictEnd),
+          lifecycleState: "ENDED",
+        }),
+      ).rejects.toThrow("STAGE10I_REVIEWED_RESOLUTION_REQUIRES_STAGE10M");
+
+      const uncertaintyEnd = {
+        projectId: owner.projectId,
+        uncertaintyId: uncertainty.uncertaintyId,
+        expectedVersion: 1,
+        reason: "REVIEWED_RESOLUTION" as const,
+        resolvedByContextRevisionId: contextRevisionId,
+      };
+      await expect(
+        owner.integrity.endUncertainty(owner.context, {
+          ...uncertaintyEnd,
+          ...proof(`application-uncertainty-${label}`, uncertaintyEnd),
+        }),
+      ).rejects.toThrow("Stage 10M");
+      await expect(
+        owner.integrityRepository.recordUncertainty(owner.context, {
+          ...uncertaintyEnd,
+          ...proof(`database-uncertainty-${label}`, uncertaintyEnd),
+          lifecycleState: "ENDED",
+        }),
+      ).rejects.toThrow("STAGE10I_REVIEWED_RESOLUTION_REQUIRES_STAGE10M");
+    }
+
+    const history = await owner.integrity.list(owner.context, owner.projectId, false);
+    expect(history.conflicts[0]).toMatchObject({ lifecycleState: "ACTIVE", version: 1 });
+    expect(history.uncertainties[0]).toMatchObject({ lifecycleState: "ACTIVE", version: 1 });
   });
 
   it("rejects semantically identical claims and known foreign IDs", async () => {

@@ -116,15 +116,18 @@ export function resolutionLink(
   revisionId?: ContextRevisionId | null,
 ): ContextRevisionId | null {
   const resolved = revisionId ?? null;
-  if ((reason === "REVIEWED_RESOLUTION") !== (resolved !== null))
-    throw new Error("Reviewed resolution requires exactly one Context Revision linkage");
+  if (reason === "REVIEWED_RESOLUTION")
+    throw new Error("Reviewed resolution is reserved for the Stage 10M causal operation");
+  if (resolved !== null)
+    throw new Error("Non-reviewed endings cannot carry a Context Revision linkage");
   return resolved;
 }
 
 export function integrityPlane(
   reference: ConflictParticipantReference | UncertaintyTargetReference,
-): IntegrityPlane {
+): IntegrityPlane | null {
   if (reference.kind === "SOURCE_EVIDENCE") return "SOURCE";
   if (reference.kind === "WORKING_CONTEXT") return "WORKING";
-  return "REVIEWED";
+  if (reference.kind === "REVIEWED_CONTEXT") return "REVIEWED";
+  return null;
 }

@@ -47,11 +47,13 @@ An active Conflict may append a changed participant occurrence. Ending appends a
 and copies the final participant snapshot so history remains inspectable. A later recurrence reuses
 the stable Conflict identity. Uncertainty follows the same append-only active/ended pattern.
 
-`REVIEWED_RESOLUTION` endings require a Context Revision belonging to the same Context Identity.
-That nullable linkage is the hook for a later reviewed resolution. Stage 10I does not create that
-revision, mutate a Context Record, apply a review decision, or resolve history directly. Non-review
-endings describe inputs that no longer conflict or uncertainty that no longer applies; they also
-remain historical facts.
+The `REVIEWED_RESOLUTION` lifecycle value and nullable Context Revision linkage are retained as the
+schema hook for later reviewed resolution. Stage 10I's generic application and database mutation
+operations reject that ending because identity membership alone cannot prove causal resolution.
+Stage 10M will introduce the operation that applies a reviewed Context Revision and can establish
+that causal link. Stage 10I does not create that revision, mutate a Context Record, apply a review
+decision, or resolve history directly. Non-review endings describe inputs that no longer conflict
+or uncertainty that no longer applies; they also remain historical facts.
 
 The following remain deferred:
 

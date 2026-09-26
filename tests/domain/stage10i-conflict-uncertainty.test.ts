@@ -31,9 +31,12 @@ describe("Stage 10I Conflict and Uncertainty domain", () => {
     expect(integrityPlane({ kind: "WORKING_CONTEXT", workingContextItemId: working })).toBe(
       "WORKING",
     );
-    expect(integrityPlane({ kind: "SEMANTIC_IDENTITY", contextIdentityId: identity })).toBe(
-      "REVIEWED",
-    );
+    const semanticIdentityPlane = integrityPlane({
+      kind: "SEMANTIC_IDENTITY",
+      contextIdentityId: identity,
+    });
+    expect(semanticIdentityPlane).toBeNull();
+    expect(semanticIdentityPlane).not.toBe("REVIEWED");
   });
 
   it("normalizes a deterministic multi-party participant set without hard-coding pairs", () => {
@@ -80,10 +83,10 @@ describe("Stage 10I Conflict and Uncertainty domain", () => {
     expect(() => assertIntegrityTransition("ENDED", "ENDED")).toThrow("cannot be ended again");
   });
 
-  it("requires a Context Revision only for reviewed resolution", () => {
-    expect(resolutionLink("REVIEWED_RESOLUTION", revision)).toBe(revision);
+  it("reserves reviewed resolution for the future Stage 10M causal operation", () => {
     expect(resolutionLink("INPUTS_NO_LONGER_CONFLICT")).toBeNull();
-    expect(() => resolutionLink("REVIEWED_RESOLUTION")).toThrow("Context Revision");
+    expect(() => resolutionLink("REVIEWED_RESOLUTION", revision)).toThrow("Stage 10M");
+    expect(() => resolutionLink("REVIEWED_RESOLUTION")).toThrow("Stage 10M");
     expect(() => resolutionLink("EVIDENCE_STRENGTHENED", revision)).toThrow("Context Revision");
   });
 

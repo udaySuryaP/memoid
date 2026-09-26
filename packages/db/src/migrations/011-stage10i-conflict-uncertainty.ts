@@ -372,6 +372,8 @@ async function conflictFunction(db: Kysely<unknown>): Promise<void> {
       claim_fingerprint bytea; set_hash bytea; new_occurrence_id uuid:=uuidv7();
       new_version bigint; participant_count integer:=0; distinct_claims integer; now_at timestamptz:=clock_timestamp();
     begin
+      if p_ending_reason='REVIEWED_RESOLUTION'
+        then raise exception 'STAGE10I_REVIEWED_RESOLUTION_REQUIRES_STAGE10M'; end if;
       if octet_length(p_session_token_hash)<>32 or octet_length(p_idempotency_key_hash)<>32
         or octet_length(p_request_fingerprint)<>32 or p_expected_version<0
         or p_lifecycle_state not in ('ACTIVE','ENDED') or not memoid.is_uuid_v7(p_correlation_id)
@@ -572,6 +574,8 @@ async function uncertaintyFunction(db: Kysely<unknown>): Promise<void> {
       source_qualification varchar; new_occurrence_id uuid:=uuidv7(); new_version bigint;
       now_at timestamptz:=clock_timestamp();
     begin
+      if p_ending_reason='REVIEWED_RESOLUTION'
+        then raise exception 'STAGE10I_REVIEWED_RESOLUTION_REQUIRES_STAGE10M'; end if;
       if octet_length(p_session_token_hash)<>32 or octet_length(p_idempotency_key_hash)<>32
         or octet_length(p_request_fingerprint)<>32 or p_expected_version<0
         or p_lifecycle_state not in ('ACTIVE','ENDED') or not memoid.is_uuid_v7(p_correlation_id)
