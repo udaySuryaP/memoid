@@ -566,9 +566,15 @@ suite("Stage 10J Reconciliation PostgreSQL material and service", () => {
       scope.projectId,
       frontierCandidate,
     );
-    await sql`update memoid.source_frontier_states set desired_sequence=desired_sequence+1
-      where workspace_id=${scope.workspaceId}::uuid and project_id=${scope.projectId}::uuid
-        and frontier_unit_id=${sourceA.frontierUnitId}::uuid`.execute(isolated.db);
+    await isolated.db.transaction().execute(async (trx) => {
+      await sql`insert into memoid.source_observations(workspace_id,project_id,frontier_unit_id,
+        observation_sequence,external_revision,observed_at,metadata)
+        values(${scope.workspaceId}::uuid,${scope.projectId}::uuid,${sourceA.frontierUnitId}::uuid,
+        2,'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',clock_timestamp(),'{}'::jsonb)`.execute(trx);
+      await sql`update memoid.source_frontier_states set observed_sequence=2,desired_sequence=2
+        where workspace_id=${scope.workspaceId}::uuid and project_id=${scope.projectId}::uuid
+          and frontier_unit_id=${sourceA.frontierUnitId}::uuid`.execute(trx);
+    });
     await expect(
       repository.commit(scope.context, frontierMaterial, changed(frontierMaterial)),
     ).rejects.toThrow("STALE_FRONTIER_BASIS");

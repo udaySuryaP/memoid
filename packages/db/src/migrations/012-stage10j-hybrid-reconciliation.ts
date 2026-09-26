@@ -192,6 +192,8 @@ async function commitFunction(db: Kysely<unknown>): Promise<void> {
     if not found or actor_row.actor_kind not in ('HUMAN','MEMOID_SYSTEM','MEMOID_WORKER') then raise exception 'ACTOR_MISMATCH'; end if;
     select * into candidate_row from memoid.candidate_assertions where workspace_id=project_row.workspace_id and project_id=project_row.id and id=p_candidate_assertion_id for share;
     if not found then raise exception 'INVALID_CANDIDATE_ASSERTION'; end if;
+    select * into existing_row from memoid.reconciliation_records where workspace_id=project_row.workspace_id and project_id=project_row.id and candidate_assertion_id=p_candidate_assertion_id and basis_hash=p_basis_hash;
+    if found then return query select existing_row.id,existing_row.working_context_item_id,true; return; end if;
     perform 1 from memoid.context_identities where workspace_id=project_row.workspace_id and project_id=project_row.id and id=p_context_identity_id and lifecycle_state='ACTIVE' and version=p_current_context_version;
     if not found then raise exception 'STALE_REVIEWED_CONTEXT_BASIS'; end if;
     select * into current_row from memoid.context_identity_current_records where workspace_id=project_row.workspace_id and project_id=project_row.id and context_identity_id=p_context_identity_id;
@@ -220,8 +222,6 @@ async function commitFunction(db: Kysely<unknown>): Promise<void> {
     if actual_frontier<>p_evidence_frontier_version then raise exception 'STALE_FRONTIER_BASIS'; end if;
     if actual_integrity<>p_integrity_version then raise exception 'STALE_INTEGRITY_BASIS'; end if;
     if actual_working<>p_working_context_version then raise exception 'STALE_WORKING_CONTEXT_BASIS'; end if;
-    select * into existing_row from memoid.reconciliation_records where workspace_id=project_row.workspace_id and project_id=project_row.id and candidate_assertion_id=p_candidate_assertion_id and basis_hash=p_basis_hash;
-    if found then return query select existing_row.id,existing_row.working_context_item_id,true; return; end if;
     if p_classification<>'UNCHANGED' then
       select id into working_id from memoid.working_context_items where workspace_id=project_row.workspace_id and project_id=project_row.id and candidate_assertion_id=p_candidate_assertion_id for update;
       if found then update memoid.working_context_items set context_identity_id=p_context_identity_id,trust_qualification='RECONCILED_UNREVIEWED',assertion_payload=p_normalized_assertion,assertion_hash=sha256(convert_to(p_normalized_assertion::text,'UTF8')),reconciled_at=clock_timestamp() where workspace_id=project_row.workspace_id and project_id=project_row.id and id=working_id;
