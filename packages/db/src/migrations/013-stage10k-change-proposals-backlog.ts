@@ -294,13 +294,15 @@ async function functions(db: Kysely<unknown>): Promise<void> {
     insert into memoid.proposal_state_events(workspace_id,project_id,target_kind,proposal_id,proposal_item_id,to_state,reason,operation_id,actor_id)
       values(project_row.workspace_id,project_row.id,'ITEM',selected_proposal,selected_item,'CURRENT','MATERIALIZED',operation_value,actor_row.id);
     if predecessor_item is not null then
-      update memoid.proposal_item_current_states set lifecycle_state='SUPERSEDED',successor_item_id=selected_item,reason='NEWER_RECONCILIATION',version=version+1,changed_at=clock_timestamp()
-        where workspace_id=project_row.workspace_id and project_id=project_row.id and proposal_item_id=predecessor_item and lifecycle_state='CURRENT';
+      update memoid.proposal_item_current_states as current_state
+        set lifecycle_state='SUPERSEDED',successor_item_id=selected_item,reason='NEWER_RECONCILIATION',version=current_state.version+1,changed_at=clock_timestamp()
+        where current_state.workspace_id=project_row.workspace_id and current_state.project_id=project_row.id and current_state.proposal_item_id=predecessor_item and current_state.lifecycle_state='CURRENT';
       insert into memoid.proposal_state_events(workspace_id,project_id,target_kind,proposal_id,proposal_item_id,from_state,to_state,reason,successor_proposal_id,successor_item_id,operation_id,actor_id)
         values(project_row.workspace_id,project_row.id,'ITEM',predecessor_proposal,predecessor_item,'CURRENT','SUPERSEDED','NEWER_RECONCILIATION',selected_proposal,selected_item,operation_value,actor_row.id);
       if not exists(select 1 from memoid.change_proposal_items item join memoid.proposal_item_current_states state on state.workspace_id=item.workspace_id and state.project_id=item.project_id and state.proposal_item_id=item.id where item.workspace_id=project_row.workspace_id and item.project_id=project_row.id and item.proposal_id=predecessor_proposal and state.lifecycle_state='CURRENT') then
-        update memoid.proposal_current_states set lifecycle_state='SUPERSEDED',successor_proposal_id=selected_proposal,reason='ALL_ITEMS_SUPERSEDED',version=version+1,changed_at=clock_timestamp()
-          where workspace_id=project_row.workspace_id and project_id=project_row.id and proposal_id=predecessor_proposal and lifecycle_state='OPEN';
+        update memoid.proposal_current_states as current_state
+          set lifecycle_state='SUPERSEDED',successor_proposal_id=selected_proposal,reason='ALL_ITEMS_SUPERSEDED',version=current_state.version+1,changed_at=clock_timestamp()
+          where current_state.workspace_id=project_row.workspace_id and current_state.project_id=project_row.id and current_state.proposal_id=predecessor_proposal and current_state.lifecycle_state='OPEN';
         insert into memoid.proposal_state_events(workspace_id,project_id,target_kind,proposal_id,from_state,to_state,reason,successor_proposal_id,operation_id,actor_id)
           values(project_row.workspace_id,project_row.id,'PROPOSAL',predecessor_proposal,'OPEN','SUPERSEDED','ALL_ITEMS_SUPERSEDED',selected_proposal,operation_value,actor_row.id);
       end if;

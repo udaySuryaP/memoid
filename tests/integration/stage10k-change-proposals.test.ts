@@ -166,24 +166,36 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
 
   async function reviewed(identityId: ContextIdentityId, value: string): Promise<void> {
     revisionSequence += 1;
-    const revisionId = (
-      await sql<{
-        id: string;
-      }>`insert into memoid.context_revisions(workspace_id,project_id,revision_sequence,review_policy_version,decision_mode,applied_by_account_id) values(${workspaceId}::uuid,${projectId}::uuid,${revisionSequence},1,'MANUAL',${accountId}::uuid) returning id::text`.execute(
-        isolated.db,
-      )
-    ).rows[0]!.id;
-    const payload = JSON.stringify({ value });
-    const recordId = (
-      await sql<{
-        id: string;
-      }>`insert into memoid.context_records(workspace_id,project_id,context_identity_id,context_revision_id,assertion_payload,assertion_hash,reviewed_at) values(${workspaceId}::uuid,${projectId}::uuid,${identityId}::uuid,${revisionId}::uuid,${payload}::jsonb,sha256(convert_to(${payload}::jsonb::text,'UTF8')),clock_timestamp()) returning id::text`.execute(
-        isolated.db,
-      )
-    ).rows[0]!.id;
-    await sql`insert into memoid.context_identity_current_records(workspace_id,project_id,context_identity_id,context_record_id,established_by_revision_id) values(${workspaceId}::uuid,${projectId}::uuid,${identityId}::uuid,${recordId}::uuid,${revisionId}::uuid)`.execute(
-      isolated.db,
-    );
+    await isolated.db.transaction().execute(async (trx) => {
+      const revisionId = (
+        await sql<{
+          id: string;
+        }>`insert into memoid.context_revisions(workspace_id,project_id,revision_sequence,review_policy_version,decision_mode,applied_by_account_id) values(${workspaceId}::uuid,${projectId}::uuid,${revisionSequence},1,'MANUAL',${accountId}::uuid) returning id::text`.execute(
+          trx,
+        )
+      ).rows[0]!.id;
+      const payload = JSON.stringify({ value });
+      const recordId = (
+        await sql<{
+          id: string;
+        }>`insert into memoid.context_records(workspace_id,project_id,context_identity_id,context_revision_id,assertion_payload,assertion_hash,reviewed_at) values(${workspaceId}::uuid,${projectId}::uuid,${identityId}::uuid,${revisionId}::uuid,${payload}::jsonb,sha256(convert_to(${payload}::jsonb::text,'UTF8')),clock_timestamp()) returning id::text`.execute(
+          trx,
+        )
+      ).rows[0]!.id;
+      const idempotencyId = (
+        await sql<{
+          id: string;
+        }>`insert into memoid.idempotency_records(workspace_id,project_id,actor_id,action_key,idempotency_key_hash,request_fingerprint,state,result_kind,result_reference,result_status_code,expires_at) values(${workspaceId}::uuid,${projectId}::uuid,${humanActorId}::uuid,'STAGE10K_FIXTURE',sha256(convert_to(${`reviewed-${revisionSequence}`},'UTF8')),sha256(convert_to(${`reviewed-request-${revisionSequence}`},'UTF8')),'COMPLETED','FIXTURE',${recordId},200,clock_timestamp()+interval '1 day') returning id::text`.execute(
+          trx,
+        )
+      ).rows[0]!.id;
+      await sql`insert into memoid.context_record_origins(workspace_id,project_id,context_record_id,context_identity_id,origin_kind,identity_version,record_version,created_by_actor_id,idempotency_record_id,correlation_id) values(${workspaceId}::uuid,${projectId}::uuid,${recordId}::uuid,${identityId}::uuid,'USER_NATIVE',1,1,${humanActorId}::uuid,${idempotencyId}::uuid,uuidv7())`.execute(
+        trx,
+      );
+      await sql`insert into memoid.context_identity_current_records(workspace_id,project_id,context_identity_id,context_record_id,established_by_revision_id) values(${workspaceId}::uuid,${projectId}::uuid,${identityId}::uuid,${recordId}::uuid,${revisionId}::uuid)`.execute(
+        trx,
+      );
+    });
   }
 
   async function submission(): Promise<string> {
