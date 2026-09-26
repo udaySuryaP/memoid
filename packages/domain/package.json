@@ -10,6 +10,7 @@
     "./context-identity": "./src/context-identity.ts",
     "./context-record": "./src/context-record.ts",
     "./conflict-uncertainty": "./src/conflict-uncertainty.ts",
+    "./reconciliation": "./src/reconciliation.ts",
     "./github-source": "./src/github-source.ts",
     "./identifiers": "./src/identifiers.ts",
     "./source-authority": "./src/source-authority.ts",

@@ -486,6 +486,64 @@ export interface UncertaintyCurrentStatesTable extends ScopedRow {
   updated_at: Timestamp;
 }
 
+export interface ReconciliationRecordsTable extends ScopedRow {
+  id: Generated<string>;
+  candidate_assertion_id: string;
+  context_identity_id: string;
+  basis_hash: Hash;
+  current_context_record_id: string | null;
+  current_context_version: Int8;
+  working_context_version: Int8;
+  authority_version: Int8;
+  evidence_frontier_version: Int8;
+  integrity_version: Int8;
+  engine_contract_version: string;
+  schema_version: string;
+  prompt_version: string;
+  compaction_version: string;
+  normalization_version: string;
+  decision_path: "DETERMINISTIC" | "MODEL";
+  classification:
+    "NEW" | "CHANGED" | "SUPERSEDED" | "CONFLICTING" | "OBSOLETE" | "UNCERTAIN" | "UNCHANGED";
+  semantic_identity: string;
+  normalized_assertion: Json | null;
+  evidence_reference_ids: JsonArray;
+  conflict_indicated: boolean;
+  uncertainty_indicated: boolean;
+  reason_codes: JsonArray;
+  bounded_justification: string | null;
+  working_context_item_id: string | null;
+  operation_id: string | null;
+  recorded_by_actor_id: string;
+  recorded_at: Timestamp;
+}
+
+export interface ReconciliationCurrentStatesTable extends ScopedRow {
+  candidate_assertion_id: string;
+  reconciliation_id: string;
+  basis_hash: Hash;
+  updated_at: Timestamp;
+}
+
+export interface ModelInvocationAttemptsTable extends ScopedRow {
+  id: Generated<string>;
+  candidate_assertion_id: string;
+  basis_hash: Hash;
+  provider_id: string;
+  model_id: string;
+  configuration_version: string;
+  pricing_version: string | null;
+  attempt_number: number;
+  input_units: Int8;
+  output_units: Int8;
+  total_units: Int8;
+  estimated_cost_microunits: Int8 | null;
+  latency_ms: number;
+  succeeded: boolean;
+  failure_code: string | null;
+  invoked_at: Timestamp;
+}
+
 export interface ActorsTable {
   id: Generated<string>;
   workspace_id: string;
@@ -682,6 +740,9 @@ export interface MemoidDatabase {
   "memoid.integrity_uncertainties": IntegrityUncertaintiesTable;
   "memoid.uncertainty_occurrences": UncertaintyOccurrencesTable;
   "memoid.uncertainty_current_states": UncertaintyCurrentStatesTable;
+  "memoid.reconciliation_records": ReconciliationRecordsTable;
+  "memoid.reconciliation_current_states": ReconciliationCurrentStatesTable;
+  "memoid.model_invocation_attempts": ModelInvocationAttemptsTable;
   "memoid.actors": ActorsTable;
   "memoid.operations": OperationsTable;
   "memoid.operation_attempts": OperationAttemptsTable;

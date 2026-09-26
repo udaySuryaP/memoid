@@ -30,6 +30,7 @@
     "db:seed": "tsx packages/db/src/cli.ts seed",
     "secrets:scan": "secretlint \"**/*\" --secretlintrc .secretlintrc.json",
     "sast": "eslint --config eslint.security.config.mjs --max-warnings 0 apps packages scripts tests",
+    "benchmark:reconciliation": "tsx scripts/stage10j-reconciliation-benchmark.ts",
     "qa": "corepack pnpm format:check && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm traceability:check && corepack pnpm test && corepack pnpm build"
   },
   "devDependencies": {

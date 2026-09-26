@@ -6,6 +6,7 @@ export * from "./source-ingestion.js";
 export * from "./source-authority.js";
 export * from "./context-record.js";
 export * from "./conflict-uncertainty.js";
+export * from "./reconciliation.js";
 
 export interface AuthenticatedIdentity {
   readonly providerKey: string;
