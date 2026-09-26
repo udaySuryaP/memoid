@@ -64,6 +64,12 @@ suite("Stage 10H Context Records PostgreSQL", () => {
   const frontiersByProjectRef = new Map<string, { unitId: string; observationSequence: number }>();
   const closables: Array<{ close(): Promise<void> }> = [];
 
+  async function rollbackToContextBoundary() {
+    const migrator = createMigrator(isolated.db);
+    const first = await migrator.migrateDown();
+    return first.error ? first : migrator.migrateDown();
+  }
+
   beforeAll(async () => {
     isolated = await createIsolatedTestDatabase(adminUrl!, "10h_context");
     await migrateToLatest(isolated.db);
@@ -322,7 +328,7 @@ suite("Stage 10H Context Records PostgreSQL", () => {
 
   it("refuses rollback after user-native Context creation without discarding provenance", async () => {
     const created = await owner.service.put(owner.context, put(owner, "rollback-user"));
-    const down = await createMigrator(isolated.db).migrateDown();
+    const down = await rollbackToContextBoundary();
     expect(String(down.error)).toContain("STAGE10H_ROLLBACK_REFUSED_POPULATED_CONTEXT_HISTORY");
     const retained = (
       await sql<{ count: string }>`select count(*)::text count from memoid.context_record_origins
@@ -339,7 +345,7 @@ suite("Stage 10H Context Records PostgreSQL", () => {
       owner.context,
       sourcePut(owner, source.evidence, source.authority, "rollback-source"),
     );
-    const down = await createMigrator(isolated.db).migrateDown();
+    const down = await rollbackToContextBoundary();
     expect(String(down.error)).toContain("STAGE10H_ROLLBACK_REFUSED_POPULATED_CONTEXT_HISTORY");
     const retained = (
       await sql<{ origins: string; evidence: string }>`select
@@ -371,7 +377,7 @@ suite("Stage 10H Context Records PostgreSQL", () => {
       idempotencyKeyHash: hashIdempotencyKey("rollback-history-end".padEnd(40, "e")),
       requestFingerprint: fingerprintLifecycleRequest(endBase),
     });
-    const down = await createMigrator(isolated.db).migrateDown();
+    const down = await rollbackToContextBoundary();
     expect(String(down.error)).toContain("STAGE10H_ROLLBACK_REFUSED_POPULATED_CONTEXT_HISTORY");
     const retained = (
       await sql<{ origins: string; endings: string }>`select
