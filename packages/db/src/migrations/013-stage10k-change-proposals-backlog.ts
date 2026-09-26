@@ -236,7 +236,7 @@ async function functions(db: Kysely<unknown>): Promise<void> {
   language plpgsql security definer set search_path=pg_catalog,memoid as $$
   declare project_row memoid.projects%rowtype; actor_row memoid.actors%rowtype; rec memoid.reconciliation_records%rowtype;
     submission uuid; scope_value varchar; facet_value varchar; group_hash bytea; fingerprint bytea;
-    selected_proposal uuid; selected_item uuid; predecessor_item uuid; predecessor_proposal uuid; operation_value uuid:=uuidv7();
+    selected_proposal uuid; selected_item uuid; predecessor_item uuid; predecessor_proposal uuid; operation_value uuid:=uuidv7(); correlation_value uuid:=uuidv7();
     actual_context uuid; actual_context_version bigint; actual_authority bigint; actual_frontier bigint; actual_integrity bigint;
   begin
     select * into project_row from memoid.projects where workspace_id=memoid.current_workspace_id() and id=p_project_id and p_project_id=memoid.current_project_id() for share;
@@ -277,8 +277,8 @@ async function functions(db: Kysely<unknown>): Promise<void> {
         where proposal.workspace_id=project_row.workspace_id and proposal.project_id=project_row.id and proposal.grouping_key=group_hash and state.lifecycle_state='OPEN'
         order by proposal.created_at,proposal.id limit 1 for update of state;
     end if;
-    insert into memoid.operations(workspace_id,project_id,id,initiating_actor_id,operation_kind,state,attempt_count,max_attempts,terminal_at)
-      values(project_row.workspace_id,project_row.id,operation_value,actor_row.id,'MATERIALIZE_CHANGE_PROPOSAL','SUCCEEDED',1,1,clock_timestamp());
+    insert into memoid.operations(workspace_id,project_id,id,initiating_actor_id,operation_kind,state,correlation_id,attempt_count,max_attempts,terminal_at)
+      values(project_row.workspace_id,project_row.id,operation_value,actor_row.id,'MATERIALIZE_CHANGE_PROPOSAL','SUCCEEDED',correlation_value,1,1,clock_timestamp());
     if selected_proposal is null then
       insert into memoid.change_proposals(workspace_id,project_id,grouping_version,grouping_key,submission_id,scope_key,facet_key,operation_id,created_by_actor_id)
         values(project_row.workspace_id,project_row.id,'proposal-grouping.v1',group_hash,submission,scope_value,facet_value,operation_value,actor_row.id) returning id into selected_proposal;
@@ -306,7 +306,7 @@ async function functions(db: Kysely<unknown>): Promise<void> {
       end if;
     end if;
     insert into memoid.audit_events(workspace_id,project_id,actor_id,category,event_type,occurred_at,target_type,target_key,correlation_id,operation_id,outcome,metadata)
-      values(project_row.workspace_id,project_row.id,actor_row.id,'DATA_INTEGRITY','CHANGE_PROPOSAL_MATERIALIZED',clock_timestamp(),'CHANGE_PROPOSAL',selected_proposal::text,uuidv7(),operation_value,'SUCCESS',jsonb_build_object('RECONCILIATION_ID',rec.id::text,'RECONCILIATION_CLASS',rec.classification));
+      values(project_row.workspace_id,project_row.id,actor_row.id,'DATA_INTEGRITY','CHANGE_PROPOSAL_MATERIALIZED',clock_timestamp(),'CHANGE_PROPOSAL',selected_proposal::text,correlation_value,operation_value,'SUCCESS',jsonb_build_object('RECONCILIATION_ID',rec.id::text,'RECONCILIATION_CLASS',rec.classification));
     return query select selected_proposal,selected_item,false;
   end $$`,
     )
@@ -316,7 +316,7 @@ async function functions(db: Kysely<unknown>): Promise<void> {
     .raw(
       `create function memoid.refresh_change_proposal_backlog(p_project_id uuid)
   returns bigint language plpgsql security definer set search_path=pg_catalog,memoid as $$
-  declare project_row memoid.projects%rowtype; actor_row memoid.actors%rowtype; changed bigint:=0; item record; operation_value uuid;
+  declare project_row memoid.projects%rowtype; actor_row memoid.actors%rowtype; changed bigint:=0; item record; operation_value uuid; correlation_value uuid;
   begin
     select * into project_row from memoid.projects where workspace_id=memoid.current_workspace_id() and id=p_project_id and p_project_id=memoid.current_project_id();
     if not found or project_row.lifecycle_state<>'ACTIVE' then raise exception 'RESOURCE_NOT_FOUND'; end if;
@@ -330,7 +330,8 @@ async function functions(db: Kysely<unknown>): Promise<void> {
     loop
       if operation_value is null then
         operation_value:=uuidv7();
-        insert into memoid.operations(workspace_id,project_id,id,initiating_actor_id,operation_kind,state,attempt_count,max_attempts,terminal_at) values(project_row.workspace_id,project_row.id,operation_value,actor_row.id,'REFRESH_CHANGE_PROPOSAL_BACKLOG','SUCCEEDED',1,1,clock_timestamp());
+        correlation_value:=uuidv7();
+        insert into memoid.operations(workspace_id,project_id,id,initiating_actor_id,operation_kind,state,correlation_id,attempt_count,max_attempts,terminal_at) values(project_row.workspace_id,project_row.id,operation_value,actor_row.id,'REFRESH_CHANGE_PROPOSAL_BACKLOG','SUCCEEDED',correlation_value,1,1,clock_timestamp());
       end if;
       update memoid.proposal_item_current_states set lifecycle_state='STALE',reason='BASIS_ADVANCED',version=version+1,changed_at=clock_timestamp() where workspace_id=project_row.workspace_id and project_id=project_row.id and proposal_item_id=item.id;
       insert into memoid.proposal_state_events(workspace_id,project_id,target_kind,proposal_id,proposal_item_id,from_state,to_state,reason,operation_id,actor_id) values(project_row.workspace_id,project_row.id,'ITEM',item.proposal_id,item.id,'CURRENT','STALE','BASIS_ADVANCED',operation_value,actor_row.id);
@@ -345,6 +346,8 @@ async function functions(db: Kysely<unknown>): Promise<void> {
         update memoid.proposal_current_states set lifecycle_state='STALE',reason='NO_CURRENT_ITEMS',version=version+1,changed_at=clock_timestamp() where workspace_id=project_row.workspace_id and project_id=project_row.id and proposal_id=item.proposal_id;
         insert into memoid.proposal_state_events(workspace_id,project_id,target_kind,proposal_id,from_state,to_state,reason,operation_id,actor_id) values(project_row.workspace_id,project_row.id,'PROPOSAL',item.proposal_id,'OPEN','STALE','NO_CURRENT_ITEMS',operation_value,actor_row.id);
       end loop;
+      insert into memoid.audit_events(workspace_id,project_id,actor_id,category,event_type,occurred_at,target_type,target_key,correlation_id,operation_id,outcome,metadata)
+        values(project_row.workspace_id,project_row.id,actor_row.id,'DATA_INTEGRITY','CHANGE_PROPOSAL_BACKLOG_REFRESHED',clock_timestamp(),'PROJECT',project_row.id::text,correlation_value,operation_value,'SUCCESS',jsonb_build_object('STALE_ITEM_COUNT',changed));
     end if;
     return changed;
   end $$`,
