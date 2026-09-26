@@ -1,0 +1,65 @@
+{
+  "version": "stage10j-corpus.v1",
+  "description": "Synthetic engineering validation only; not evidence of real-world prevalence or market validation.",
+  "cases": [
+    {
+      "id": "new-no-current",
+      "expected": "NEW",
+      "path": "DETERMINISTIC",
+      "scenario": "NO_CURRENT"
+    },
+    {
+      "id": "unchanged-exact",
+      "expected": "UNCHANGED",
+      "path": "DETERMINISTIC",
+      "scenario": "EXACT"
+    },
+    {
+      "id": "unchanged-duplicate",
+      "expected": "UNCHANGED",
+      "path": "DETERMINISTIC",
+      "scenario": "DUPLICATE"
+    },
+    {
+      "id": "historical-supersession",
+      "expected": "SUPERSEDED",
+      "path": "DETERMINISTIC",
+      "scenario": "HISTORICAL"
+    },
+    {
+      "id": "known-conflict",
+      "expected": "CONFLICTING",
+      "path": "DETERMINISTIC",
+      "scenario": "ACTIVE_CONFLICT"
+    },
+    {
+      "id": "known-uncertainty",
+      "expected": "UNCERTAIN",
+      "path": "DETERMINISTIC",
+      "scenario": "ACTIVE_UNCERTAINTY"
+    },
+    {
+      "id": "shadowed-source",
+      "expected": "UNCERTAIN",
+      "path": "DETERMINISTIC",
+      "scenario": "SHADOWED"
+    },
+    {
+      "id": "missing-evidence",
+      "expected": "UNCERTAIN",
+      "path": "DETERMINISTIC",
+      "scenario": "MISSING_EVIDENCE"
+    },
+    { "id": "semantic-change", "expected": "CHANGED", "path": "MODEL", "scenario": "MODEL" },
+    { "id": "semantic-obsolete", "expected": "OBSOLETE", "path": "MODEL", "scenario": "MODEL" },
+    { "id": "wording-equivalent", "expected": "UNCHANGED", "path": "MODEL", "scenario": "MODEL" },
+    {
+      "id": "multi-source-disagreement",
+      "expected": "CONFLICTING",
+      "path": "MODEL",
+      "scenario": "MODEL"
+    },
+    { "id": "ambiguous-evidence", "expected": "UNCERTAIN", "path": "MODEL", "scenario": "MODEL" },
+    { "id": "false-conflict-guard", "expected": "CHANGED", "path": "MODEL", "scenario": "MODEL" }
+  ]
+}
