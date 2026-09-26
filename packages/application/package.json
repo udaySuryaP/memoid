@@ -8,6 +8,7 @@
     "./context-record": "./src/context-record.ts",
     "./conflict-uncertainty": "./src/conflict-uncertainty.ts",
     "./reconciliation": "./src/reconciliation.ts",
+    "./change-proposal": "./src/change-proposal.ts",
     "./github-source": "./src/github-source.ts",
     "./source-ingestion": "./src/source-ingestion.ts",
     "./source-authority": "./src/source-authority.ts",

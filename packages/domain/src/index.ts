@@ -1,4 +1,5 @@
 export * from "./candidate.js";
+export * from "./change-proposal.js";
 export * from "./actor.js";
 export * from "./audit.js";
 export * from "./context-identity.js";
