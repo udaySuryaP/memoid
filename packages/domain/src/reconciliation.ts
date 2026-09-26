@@ -4,6 +4,7 @@ import type {
   ContextRecordId,
   EvidenceReferenceId,
   ProjectId,
+  SourceId,
   SourceAuthorityAssignmentId,
   WorkingContextItemId,
 } from "./identifiers.js";
@@ -319,6 +320,7 @@ export interface ReasoningPacketBudget {
 }
 export interface UntrustedEvidenceInput {
   readonly evidenceReferenceId: EvidenceReferenceId;
+  readonly sourceId: SourceId;
   readonly contentClassification:
     "PUBLIC_PROJECT_TEXT" | "SECRET" | "CREDENTIAL" | "UNKNOWN_SENSITIVE";
   readonly content: string;
@@ -338,6 +340,7 @@ export interface ReasoningPacket {
   readonly workingContext: readonly Readonly<Record<string, unknown>>[];
   readonly evidence: readonly {
     readonly evidenceReferenceId: EvidenceReferenceId;
+    readonly sourceId: SourceId;
     readonly content: string;
     readonly authorityQualification: AuthorityQualification | "SHADOWED";
   }[];
@@ -394,6 +397,7 @@ export function buildReasoningPacket(input: {
     return [
       {
         evidenceReferenceId: item.evidenceReferenceId,
+        sourceId: item.sourceId,
         content,
         authorityQualification: item.authorityQualification,
       },

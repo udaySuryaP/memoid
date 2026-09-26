@@ -99,6 +99,7 @@ const result = {
   elapsedMs,
   usage: { inputUnits: 0, outputUnits: 0, estimatedCostMicrounits: 0 },
   marketValidationClaimed: false,
+  productionProviderOrModelApprovalClaimed: false,
 };
 console.log(JSON.stringify(result, null, 2));
 if (

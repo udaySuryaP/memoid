@@ -196,9 +196,26 @@ async function commitFunction(db: Kysely<unknown>): Promise<void> {
     if not found then raise exception 'STALE_REVIEWED_CONTEXT_BASIS'; end if;
     select * into current_row from memoid.context_identity_current_records where workspace_id=project_row.workspace_id and project_id=project_row.id and context_identity_id=p_context_identity_id;
     if (current_row.context_record_id is distinct from p_current_context_record_id) then raise exception 'STALE_REVIEWED_CONTEXT_BASIS'; end if;
-    select coalesce(max(assignment_version),0),coalesce(max(ingested_sequence),0) into actual_authority,actual_frontier from memoid.source_authority_assignments a full join memoid.source_frontier_states f on false where (a.workspace_id is null or (a.workspace_id=project_row.workspace_id and a.project_id=project_row.id)) and (f.workspace_id is null or (f.workspace_id=project_row.workspace_id and f.project_id=project_row.id));
-    select greatest(coalesce((select max(occurrence_version) from memoid.conflict_occurrences where workspace_id=project_row.workspace_id and project_id=project_row.id and context_identity_id=p_context_identity_id),0),coalesce((select max(occurrence_version) from memoid.uncertainty_occurrences where workspace_id=project_row.workspace_id and project_id=project_row.id and context_identity_id=p_context_identity_id),0)) into actual_integrity;
-    select count(*) into actual_working from memoid.working_context_items where workspace_id=project_row.workspace_id and project_id=project_row.id and context_identity_id=p_context_identity_id;
+    select coalesce(sum(version),0) into actual_authority from memoid.source_authority_scopes
+      where workspace_id=project_row.workspace_id and project_id=project_row.id;
+    select coalesce(sum(coalesce(observed_sequence,0)+coalesce(desired_sequence,0)
+      +coalesce(ingested_sequence,0)+coalesce(reconciled_sequence,0)),0) into actual_frontier
+      from memoid.source_frontier_states
+      where workspace_id=project_row.workspace_id and project_id=project_row.id;
+    select coalesce((select sum(s.occurrence_version) from memoid.integrity_conflicts c
+        join memoid.conflict_current_states s on s.workspace_id=c.workspace_id
+          and s.project_id=c.project_id and s.conflict_id=c.id
+        where c.workspace_id=project_row.workspace_id and c.project_id=project_row.id
+          and c.context_identity_id=p_context_identity_id),0)
+      +coalesce((select sum(s.occurrence_version) from memoid.integrity_uncertainties u
+        join memoid.uncertainty_current_states s on s.workspace_id=u.workspace_id
+          and s.project_id=u.project_id and s.uncertainty_id=u.id
+        where u.workspace_id=project_row.workspace_id and u.project_id=project_row.id
+          and u.context_identity_id=p_context_identity_id),0) into actual_integrity;
+    select coalesce(floor(extract(epoch from max(coalesce(reconciled_at,recorded_at)))*1000000)::bigint,0)
+      into actual_working from memoid.working_context_items
+      where workspace_id=project_row.workspace_id and project_id=project_row.id
+        and context_identity_id=p_context_identity_id;
     if actual_authority<>p_authority_version then raise exception 'STALE_AUTHORITY_BASIS'; end if;
     if actual_frontier<>p_evidence_frontier_version then raise exception 'STALE_FRONTIER_BASIS'; end if;
     if actual_integrity<>p_integrity_version then raise exception 'STALE_INTEGRITY_BASIS'; end if;

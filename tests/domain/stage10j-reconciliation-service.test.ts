@@ -12,6 +12,7 @@ import type {
   ContextIdentityId,
   EvidenceReferenceId,
   ProjectId,
+  SourceId,
   WorkspaceId,
   AccountId,
 } from "../../packages/domain/src/identifiers.js";
@@ -23,6 +24,7 @@ import {
 
 const projectId = "01990000-0000-7000-8000-000000000001" as ProjectId;
 const evidenceId = "01990000-0000-7000-8000-000000000002" as EvidenceReferenceId;
+const sourceId = "01990000-0000-7000-8000-000000000008" as SourceId;
 const basis: ReconciliationBasis = {
   projectId,
   candidateAssertionId: "01990000-0000-7000-8000-000000000003" as CandidateAssertionId,
@@ -105,6 +107,7 @@ function repository(current: Readonly<Record<string, unknown>> | null = { value:
       evidence: [
         {
           evidenceReferenceId: evidenceId,
+          sourceId,
           contentClassification: "PUBLIC_PROJECT_TEXT",
           content: "database is new",
           authorityQualification: "EFFECTIVE",
