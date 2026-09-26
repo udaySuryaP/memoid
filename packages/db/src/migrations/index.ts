@@ -9,6 +9,7 @@ import { stage10fIngestionEvidenceMigration } from "./007-stage10f-ingestion-evi
 import { stage10gSourceAuthorityMigration } from "./008-stage10g-source-authority.js";
 import { stage10hContextRecordsProvenanceMigration } from "./009-stage10h-context-records-provenance.js";
 import { audit1aIntegrityCorrectionsMigration } from "./010-audit1a-integrity-corrections.js";
+import { stage10iConflictUncertaintyMigration } from "./011-stage10i-conflict-uncertainty.js";
 
 export class MemoidMigrationProvider implements MigrationProvider {
   public async getMigrations(): Promise<Record<string, Migration>> {
@@ -23,6 +24,7 @@ export class MemoidMigrationProvider implements MigrationProvider {
       "008_stage10g_source_authority": stage10gSourceAuthorityMigration,
       "009_stage10h_context_records_provenance": stage10hContextRecordsProvenanceMigration,
       "010_audit1a_integrity_corrections": audit1aIntegrityCorrectionsMigration,
+      "011_stage10i_conflict_uncertainty": stage10iConflictUncertaintyMigration,
     };
   }
 }

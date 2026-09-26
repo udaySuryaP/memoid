@@ -9,6 +9,7 @@ Before implementing or merging any product vertical, verify explicit authorizati
 - Stage 10F ingestion/evidence inventory: `docs/architecture/ingestion-evidence.md`
 - Stage 10G Source Authority inventory: `docs/architecture/source-authority.md`
 - Stage 10H Context records/provenance inventory: `docs/architecture/context-records-provenance.md`
+- Stage 10I Conflict/Uncertainty inventory: `docs/architecture/conflict-uncertainty.md`
 - Consequential decisions and status: `docs/decisions/README.md`
 - Security boundaries and tests: `docs/security/foundation.md`
 - Provider boundaries: `docs/integrations/provider-boundaries.md`
