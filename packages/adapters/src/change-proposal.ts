@@ -134,15 +134,15 @@ export class PostgresChangeProposalRepository implements ChangeProposalRepositor
     return withSecurityTransaction(this.db, security(context, projectIdValue), async (trx) => {
       const rows = (
         await sql<SummaryRow>`select proposal.id::text "proposalId",
-          case when state.lifecycle_state='OPEN' and exists(
-            select 1 from memoid.change_proposal_items stale_item
-            join memoid.proposal_item_current_states stale_state on stale_state.workspace_id=stale_item.workspace_id and stale_state.project_id=stale_item.project_id and stale_state.proposal_item_id=stale_item.id
-            where stale_item.workspace_id=proposal.workspace_id and stale_item.project_id=proposal.project_id and stale_item.proposal_id=proposal.id and stale_state.lifecycle_state='CURRENT'
-              and not memoid.proposal_item_basis_is_current(proposal.project_id,stale_item.id)
+          case when state.lifecycle_state='OPEN' and not exists(
+            select 1 from memoid.change_proposal_items current_item
+            join memoid.proposal_item_current_states current_state on current_state.workspace_id=current_item.workspace_id and current_state.project_id=current_item.project_id and current_state.proposal_item_id=current_item.id
+            where current_item.workspace_id=proposal.workspace_id and current_item.project_id=proposal.project_id and current_item.proposal_id=proposal.id and current_state.lifecycle_state='CURRENT'
+              and memoid.proposal_item_basis_is_current(proposal.project_id,current_item.id)
           ) then 'STALE' else state.lifecycle_state end "lifecycleState",
           state.successor_proposal_id::text "successorProposalId",proposal.grouping_version "groupingVersion",
           proposal.scope_key "scopeKey",proposal.facet_key "facetKey",
-          count(item.id) filter(where item_state.lifecycle_state='CURRENT')::text "currentItemCount",
+          count(item.id) filter(where item_state.lifecycle_state='CURRENT' and memoid.proposal_item_basis_is_current(proposal.project_id,item.id))::text "currentItemCount",
           count(item.id)::text "totalItemCount",proposal.created_at "createdAt",state.changed_at "changedAt"
         from memoid.change_proposals proposal join memoid.proposal_current_states state
           on state.workspace_id=proposal.workspace_id and state.project_id=proposal.project_id and state.proposal_id=proposal.id
@@ -166,10 +166,10 @@ export class PostgresChangeProposalRepository implements ChangeProposalRepositor
     return withSecurityTransaction(this.db, security(context, projectIdValue), async (trx) => {
       const header = (
         await sql<SummaryRow>`select proposal.id::text "proposalId",
-          case when state.lifecycle_state='OPEN' and exists(select 1 from memoid.change_proposal_items stale_item join memoid.proposal_item_current_states stale_state on stale_state.workspace_id=stale_item.workspace_id and stale_state.project_id=stale_item.project_id and stale_state.proposal_item_id=stale_item.id where stale_item.workspace_id=proposal.workspace_id and stale_item.project_id=proposal.project_id and stale_item.proposal_id=proposal.id and stale_state.lifecycle_state='CURRENT' and not memoid.proposal_item_basis_is_current(proposal.project_id,stale_item.id)) then 'STALE' else state.lifecycle_state end "lifecycleState",
+          case when state.lifecycle_state='OPEN' and not exists(select 1 from memoid.change_proposal_items current_item join memoid.proposal_item_current_states current_state on current_state.workspace_id=current_item.workspace_id and current_state.project_id=current_item.project_id and current_state.proposal_item_id=current_item.id where current_item.workspace_id=proposal.workspace_id and current_item.project_id=proposal.project_id and current_item.proposal_id=proposal.id and current_state.lifecycle_state='CURRENT' and memoid.proposal_item_basis_is_current(proposal.project_id,current_item.id)) then 'STALE' else state.lifecycle_state end "lifecycleState",
           state.successor_proposal_id::text "successorProposalId",proposal.grouping_version "groupingVersion",
           proposal.scope_key "scopeKey",proposal.facet_key "facetKey",
-          count(item.id) filter(where item_state.lifecycle_state='CURRENT')::text "currentItemCount",
+          count(item.id) filter(where item_state.lifecycle_state='CURRENT' and memoid.proposal_item_basis_is_current(proposal.project_id,item.id))::text "currentItemCount",
           count(item.id)::text "totalItemCount",proposal.created_at "createdAt",state.changed_at "changedAt"
         from memoid.change_proposals proposal join memoid.proposal_current_states state on state.workspace_id=proposal.workspace_id and state.project_id=proposal.project_id and state.proposal_id=proposal.id
         join memoid.change_proposal_items item on item.workspace_id=proposal.workspace_id and item.project_id=proposal.project_id and item.proposal_id=proposal.id

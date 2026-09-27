@@ -268,7 +268,14 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
   }
 
   it("materializes all reviewable classes and creates no UNCHANGED review noise", async () => {
-    const classes = ["NEW", "CHANGED", "CONFLICTING", "UNCERTAIN", "OBSOLETE"] as const;
+    const classes = [
+      "NEW",
+      "CHANGED",
+      "SUPERSEDED",
+      "CONFLICTING",
+      "UNCERTAIN",
+      "OBSOLETE",
+    ] as const;
     for (const [index, classification] of classes.entries()) {
       const identityId = await identity(`class-${index}`);
       if (classification !== "NEW") await reviewed(identityId, `old-${index}`);
@@ -294,6 +301,12 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
           destructive: classification === "OBSOLETE",
         }),
       );
+      if (classification === "SUPERSEDED") {
+        expect(detail).toEqual(
+          expect.objectContaining({ lifecycleState: "OPEN", currentItemCount: 1 }),
+        );
+        expect(detail.items[0]?.lifecycleState).toBe("CURRENT");
+      }
     }
     const duplicateIdentity = await identity("unchanged");
     const duplicateSubmission = await submission();
@@ -307,26 +320,35 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
     ).resolves.toBeNull();
   });
 
-  it("groups compatible submission items while keeping each independently inspectable", async () => {
+  it("serializes simultaneous same-group materialization across different Context Identities", async () => {
     const submissionId = await submission();
     const first = await reconcile(await candidate(submissionId, await identity("group-a"), 1, "a"));
     const second = await reconcile(
       await candidate(submissionId, await identity("group-b"), 2, "b"),
     );
-    const left = await proposalService.materializeFromReconciliation(
-      workerContext,
-      projectId,
-      first,
-    );
-    const right = await proposalService.materializeFromReconciliation(
-      workerContext,
-      projectId,
-      second,
-    );
+    const [left, right] = await Promise.all([
+      proposalService.materializeFromReconciliation(workerContext, projectId, first),
+      proposalService.materializeFromReconciliation(workerContext, projectId, second),
+    ]);
     expect(right?.proposalId).toBe(left?.proposalId);
-    expect(
-      (await proposalService.getProposal(humanContext, projectId, left!.proposalId)).items,
-    ).toHaveLength(2);
+    const detail = await proposalService.getProposal(humanContext, projectId, left!.proposalId);
+    expect(detail.items).toHaveLength(2);
+    expect(new Set(detail.items.map((item) => item.contextIdentityId)).size).toBe(2);
+    const counts = (
+      await sql<{ proposals: string; items: string }>`select
+        count(distinct proposal.id)::text proposals,count(item.id)::text items
+        from memoid.change_proposals proposal join memoid.change_proposal_items item
+          on item.workspace_id=proposal.workspace_id and item.project_id=proposal.project_id and item.proposal_id=proposal.id
+        where proposal.workspace_id=${workspaceId}::uuid and proposal.project_id=${projectId}::uuid
+          and proposal.submission_id=${submissionId}::uuid`.execute(isolated.db)
+    ).rows[0];
+    expect(counts).toEqual({ proposals: "1", items: "2" });
+    const retries = await Promise.all([
+      proposalService.materializeFromReconciliation(workerContext, projectId, first),
+      proposalService.materializeFromReconciliation(workerContext, projectId, second),
+    ]);
+    expect(retries.every((result) => result?.replayed)).toBe(true);
+    expect(new Set(retries.map((result) => result?.proposalId)).size).toBe(1);
   });
 
   it("serializes duplicate delivery and replays one durable Proposal Item", async () => {
@@ -339,6 +361,171 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
     ]);
     expect(results.map((result) => result?.replayed).sort()).toEqual([false, true]);
     expect(results[0]?.proposalItemId).toBe(results[1]?.proposalItemId);
+  });
+
+  it("does not replay an observably stale semantic match and creates one monotonic successor", async () => {
+    const identityId = await identity("stale-semantic-replay");
+    const firstReconciliation = await reconcile(
+      await candidate(await submission(), identityId, 1, "same semantic work"),
+    );
+    const first = await proposalService.materializeFromReconciliation(
+      workerContext,
+      projectId,
+      firstReconciliation,
+    );
+
+    const successorCandidate = await candidate(
+      await submission(),
+      identityId,
+      1,
+      "same semantic work",
+    );
+    const observablyStale = await proposalService.getProposal(
+      humanContext,
+      projectId,
+      first!.proposalId,
+    );
+    expect(observablyStale).toEqual(
+      expect.objectContaining({ lifecycleState: "STALE", currentItemCount: 0 }),
+    );
+    expect(observablyStale.items[0]?.lifecycleState).toBe("STALE");
+
+    const successorReconciliation = await reconcile(successorCandidate);
+    const successor = await proposalService.materializeFromReconciliation(
+      workerContext,
+      projectId,
+      successorReconciliation,
+    );
+    expect(successor).toEqual(expect.objectContaining({ replayed: false }));
+    expect(successor?.proposalItemId).not.toBe(first?.proposalItemId);
+
+    const predecessor = await proposalService.getProposal(
+      humanContext,
+      projectId,
+      first!.proposalId,
+    );
+    expect(predecessor.lifecycleState).toBe("SUPERSEDED");
+    expect(predecessor.successorProposalId).toBe(successor?.proposalId);
+    expect(predecessor.items[0]).toEqual(
+      expect.objectContaining({
+        lifecycleState: "SUPERSEDED",
+        successorItemId: successor?.proposalItemId,
+      }),
+    );
+    const replay = await proposalService.materializeFromReconciliation(
+      workerContext,
+      projectId,
+      successorReconciliation,
+    );
+    expect(replay).toEqual(
+      expect.objectContaining({ proposalItemId: successor?.proposalItemId, replayed: true }),
+    );
+    const lineage = (
+      await sql<{
+        current: string;
+        superseded: string;
+        successors: string;
+        fingerprints: string;
+      }>`select
+        count(*) filter(where state.lifecycle_state='CURRENT')::text current,
+        count(*) filter(where state.lifecycle_state='SUPERSEDED')::text superseded,
+        count(distinct state.successor_item_id) filter(where state.successor_item_id is not null)::text successors,
+        count(distinct encode(item.semantic_fingerprint,'hex'))::text fingerprints
+        from memoid.change_proposal_items item join memoid.proposal_item_current_states state
+          on state.workspace_id=item.workspace_id and state.project_id=item.project_id and state.proposal_item_id=item.id
+        where item.workspace_id=${workspaceId}::uuid and item.project_id=${projectId}::uuid
+          and item.context_identity_id=${identityId}::uuid`.execute(isolated.db)
+    ).rows[0];
+    expect(lineage).toEqual({
+      current: "1",
+      superseded: "1",
+      successors: "1",
+      fingerprints: "1",
+    });
+  });
+
+  it("uses the committed Stage 10J Working fence only for the relevant Context Identity", async () => {
+    const relevantIdentity = await identity("working-relevant");
+    const proposal = await proposalService.materializeFromReconciliation(
+      workerContext,
+      projectId,
+      await reconcile(
+        await candidate(await submission(), relevantIdentity, 1, "reconciled working basis"),
+      ),
+    );
+    expect(
+      await proposalService.getProposal(humanContext, projectId, proposal!.proposalId),
+    ).toEqual(expect.objectContaining({ lifecycleState: "OPEN", currentItemCount: 1 }));
+
+    const unrelatedIdentity = await identity("working-unrelated");
+    await candidate(await submission(), unrelatedIdentity, 1, "unrelated advancement");
+    expect(
+      await proposalService.getProposal(humanContext, projectId, proposal!.proposalId),
+    ).toEqual(expect.objectContaining({ lifecycleState: "OPEN", currentItemCount: 1 }));
+
+    await candidate(await submission(), relevantIdentity, 1, "relevant advancement");
+    const stale = await proposalService.getProposal(humanContext, projectId, proposal!.proposalId);
+    expect(stale).toEqual(
+      expect.objectContaining({ lifecycleState: "STALE", currentItemCount: 0 }),
+    );
+    expect(stale.items[0]?.lifecycleState).toBe("STALE");
+  });
+
+  it("keeps mixed-item Proposal currentness consistent before and after refresh", async () => {
+    const firstIdentity = await identity("mixed-a");
+    const secondIdentity = await identity("mixed-b");
+    const submissionId = await submission();
+    const firstReconciliation = await reconcile(
+      await candidate(submissionId, firstIdentity, 1, "first current item"),
+    );
+    const secondReconciliation = await reconcile(
+      await candidate(submissionId, secondIdentity, 2, "second current item"),
+    );
+    const [first, second] = await Promise.all([
+      proposalService.materializeFromReconciliation(workerContext, projectId, firstReconciliation),
+      proposalService.materializeFromReconciliation(workerContext, projectId, secondReconciliation),
+    ]);
+    expect(second?.proposalId).toBe(first?.proposalId);
+
+    await candidate(await submission(), firstIdentity, 1, "advance first only");
+    const beforeRefresh = await proposalService.getProposal(
+      humanContext,
+      projectId,
+      first!.proposalId,
+    );
+    expect(beforeRefresh).toEqual(
+      expect.objectContaining({ lifecycleState: "OPEN", currentItemCount: 1 }),
+    );
+    expect(beforeRefresh.items.map((item) => item.lifecycleState).sort()).toEqual([
+      "CURRENT",
+      "STALE",
+    ]);
+
+    expect(await proposalService.refreshBacklogCurrentness(workerContext, projectId)).toBe(1);
+    const afterRefresh = await proposalService.getProposal(
+      humanContext,
+      projectId,
+      first!.proposalId,
+    );
+    expect(afterRefresh).toEqual(
+      expect.objectContaining({ lifecycleState: "OPEN", currentItemCount: 1 }),
+    );
+    expect(afterRefresh.items.map((item) => item.lifecycleState).sort()).toEqual([
+      "CURRENT",
+      "STALE",
+    ]);
+
+    await candidate(await submission(), secondIdentity, 1, "advance second too");
+    expect(await proposalService.getProposal(humanContext, projectId, first!.proposalId)).toEqual(
+      expect.objectContaining({ lifecycleState: "STALE", currentItemCount: 0 }),
+    );
+    expect(await proposalService.refreshBacklogCurrentness(workerContext, projectId)).toBe(1);
+    const persisted = (
+      await sql<{ state: string }>`select lifecycle_state state from memoid.proposal_current_states
+        where workspace_id=${workspaceId}::uuid and project_id=${projectId}::uuid
+          and proposal_id=${first!.proposalId}::uuid`.execute(isolated.db)
+    ).rows[0];
+    expect(persisted?.state).toBe("STALE");
   });
 
   it("creates one monotonic successor chain for competing newer reconciliations", async () => {

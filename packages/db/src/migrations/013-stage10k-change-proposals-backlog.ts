@@ -217,12 +217,15 @@ async function functions(db: Kysely<unknown>): Promise<void> {
     select exists(
       select 1 from memoid.change_proposal_items item
       join memoid.context_identities identity on identity.workspace_id=item.workspace_id and identity.project_id=item.project_id and identity.id=item.context_identity_id
+      join memoid.reconciliation_records reconciliation on reconciliation.workspace_id=item.workspace_id and reconciliation.project_id=item.project_id and reconciliation.id=item.reconciliation_id
       left join memoid.context_identity_current_records current_context on current_context.workspace_id=item.workspace_id and current_context.project_id=item.project_id and current_context.context_identity_id=item.context_identity_id
       where item.workspace_id=memoid.current_workspace_id() and item.project_id=p_project_id and p_project_id=memoid.current_project_id() and item.id=p_proposal_item_id
         and current_context.context_record_id is not distinct from item.current_context_record_id and identity.version=item.current_context_version
         and item.authority_version=(select coalesce(sum(version),0) from memoid.source_authority_scopes authority where authority.workspace_id=item.workspace_id and authority.project_id=item.project_id)
         and item.evidence_frontier_version=(select coalesce(sum(coalesce(observed_sequence,0)+coalesce(desired_sequence,0)+coalesce(ingested_sequence,0)+coalesce(reconciled_sequence,0)),0) from memoid.source_frontier_states frontier where frontier.workspace_id=item.workspace_id and frontier.project_id=item.project_id)
         and item.integrity_version=(coalesce((select sum(conflict_state.occurrence_version) from memoid.integrity_conflicts conflict join memoid.conflict_current_states conflict_state on conflict_state.workspace_id=conflict.workspace_id and conflict_state.project_id=conflict.project_id and conflict_state.conflict_id=conflict.id where conflict.workspace_id=item.workspace_id and conflict.project_id=item.project_id and conflict.context_identity_id=item.context_identity_id),0)+coalesce((select sum(uncertainty_state.occurrence_version) from memoid.integrity_uncertainties uncertainty join memoid.uncertainty_current_states uncertainty_state on uncertainty_state.workspace_id=uncertainty.workspace_id and uncertainty_state.project_id=uncertainty.project_id and uncertainty_state.uncertainty_id=uncertainty.id where uncertainty.workspace_id=item.workspace_id and uncertainty.project_id=item.project_id and uncertainty.context_identity_id=item.context_identity_id),0))
+        and item.working_context_item_id=reconciliation.working_context_item_id and item.working_context_version=reconciliation.working_context_version
+        and not exists(select 1 from memoid.working_context_items working where working.workspace_id=item.workspace_id and working.project_id=item.project_id and working.context_identity_id=item.context_identity_id and coalesce(working.reconciled_at,working.recorded_at)>reconciliation.recorded_at)
         and exists(select 1 from memoid.reconciliation_current_states reconciliation_state where reconciliation_state.workspace_id=item.workspace_id and reconciliation_state.project_id=item.project_id and reconciliation_state.candidate_assertion_id=item.candidate_assertion_id and reconciliation_state.reconciliation_id=item.reconciliation_id)
     )
   $$`,
@@ -237,7 +240,7 @@ async function functions(db: Kysely<unknown>): Promise<void> {
   declare project_row memoid.projects%rowtype; actor_row memoid.actors%rowtype; rec memoid.reconciliation_records%rowtype;
     submission uuid; scope_value varchar; facet_value varchar; group_hash bytea; fingerprint bytea;
     selected_proposal uuid; selected_item uuid; predecessor_item uuid; predecessor_proposal uuid; operation_value uuid:=uuidv7(); correlation_value uuid:=uuidv7();
-    actual_context uuid; actual_context_version bigint; actual_authority bigint; actual_frontier bigint; actual_integrity bigint;
+    actual_context uuid; actual_context_version bigint; actual_authority bigint; actual_frontier bigint; actual_integrity bigint; working_advanced boolean;
   begin
     select * into project_row from memoid.projects where workspace_id=memoid.current_workspace_id() and id=p_project_id and p_project_id=memoid.current_project_id() for share;
     if not found or project_row.lifecycle_state<>'ACTIVE' then raise exception 'RESOURCE_NOT_FOUND'; end if;
@@ -257,15 +260,17 @@ async function functions(db: Kysely<unknown>): Promise<void> {
     select coalesce(sum(coalesce(observed_sequence,0)+coalesce(desired_sequence,0)+coalesce(ingested_sequence,0)+coalesce(reconciled_sequence,0)),0) into actual_frontier from memoid.source_frontier_states where workspace_id=project_row.workspace_id and project_id=project_row.id;
     select coalesce((select sum(state.occurrence_version) from memoid.integrity_conflicts conflict join memoid.conflict_current_states state on state.workspace_id=conflict.workspace_id and state.project_id=conflict.project_id and state.conflict_id=conflict.id where conflict.workspace_id=project_row.workspace_id and conflict.project_id=project_row.id and conflict.context_identity_id=rec.context_identity_id),0)
       +coalesce((select sum(state.occurrence_version) from memoid.integrity_uncertainties uncertainty join memoid.uncertainty_current_states state on state.workspace_id=uncertainty.workspace_id and state.project_id=uncertainty.project_id and state.uncertainty_id=uncertainty.id where uncertainty.workspace_id=project_row.workspace_id and uncertainty.project_id=project_row.id and uncertainty.context_identity_id=rec.context_identity_id),0) into actual_integrity;
-    if actual_context is distinct from rec.current_context_record_id or actual_context_version<>rec.current_context_version or actual_authority<>rec.authority_version or actual_frontier<>rec.evidence_frontier_version or actual_integrity<>rec.integrity_version then raise exception 'STALE_PROPOSAL_BASIS'; end if;
+    select exists(select 1 from memoid.working_context_items working where working.workspace_id=project_row.workspace_id and working.project_id=project_row.id and working.context_identity_id=rec.context_identity_id and coalesce(working.reconciled_at,working.recorded_at)>rec.recorded_at) into working_advanced;
+    if actual_context is distinct from rec.current_context_record_id or actual_context_version<>rec.current_context_version or actual_authority<>rec.authority_version or actual_frontier<>rec.evidence_frontier_version or actual_integrity<>rec.integrity_version or working_advanced then raise exception 'STALE_PROPOSAL_BASIS'; end if;
     select a.candidate_submission_id,i.scope_key,i.facet_key into submission,scope_value,facet_value
       from memoid.candidate_assertions a join memoid.context_identities i on i.workspace_id=a.workspace_id and i.project_id=a.project_id and i.id=rec.context_identity_id
       where a.workspace_id=project_row.workspace_id and a.project_id=project_row.id and a.id=rec.candidate_assertion_id;
     group_hash:=sha256(convert_to('proposal-grouping.v1|'||project_row.id::text||'|'||submission::text||'|'||scope_value||'|'||facet_value,'UTF8'));
     fingerprint:=sha256(convert_to('proposal-item-identity.v1|'||project_row.id::text||'|'||rec.context_identity_id::text||'|'||rec.classification||'|'||rec.normalized_assertion::text||'|'||coalesce(rec.current_context_record_id::text,'')||'|'||rec.evidence_reference_ids::text||'|'||rec.authority_version::text||'|'||rec.evidence_frontier_version::text||'|'||rec.integrity_version::text,'UTF8'));
+    perform pg_advisory_xact_lock(hashtextextended(encode(group_hash,'hex'),0));
     select item.id,item.proposal_id into selected_item,selected_proposal from memoid.change_proposal_items item
       join memoid.proposal_item_current_states state on state.workspace_id=item.workspace_id and state.project_id=item.project_id and state.proposal_item_id=item.id
-      where item.workspace_id=project_row.workspace_id and item.project_id=project_row.id and item.semantic_fingerprint=fingerprint and state.lifecycle_state='CURRENT'
+      where item.workspace_id=project_row.workspace_id and item.project_id=project_row.id and item.semantic_fingerprint=fingerprint and state.lifecycle_state='CURRENT' and memoid.proposal_item_basis_is_current(project_row.id,item.id)
       order by item.created_at,item.id limit 1;
     if found then return query select selected_proposal,selected_item,true; return; end if;
     select item.id,item.proposal_id into predecessor_item,predecessor_proposal from memoid.change_proposal_items item
