@@ -387,10 +387,10 @@ export const stage10kChangeProposalsBacklogMigration: Migration = {
     await sql`reset role`.execute(db);
   },
   async down(db) {
-    await sql`set local role memoid_owner`.execute(db);
     await sql`do $$ begin if exists(select 1 from memoid.change_proposals) then raise exception 'STAGE10K_ROLLBACK_REFUSED_POPULATED_PROPOSAL_HISTORY'; end if; end $$`.execute(
       db,
     );
+    await sql`set local role memoid_owner`.execute(db);
     await sql`drop function if exists memoid.refresh_change_proposal_backlog(uuid)`.execute(db);
     await sql`drop function if exists memoid.materialize_change_proposal(uuid,uuid)`.execute(db);
     await sql`drop function if exists memoid.proposal_item_basis_is_current(uuid,uuid)`.execute(db);

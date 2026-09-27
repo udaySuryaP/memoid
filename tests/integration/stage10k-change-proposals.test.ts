@@ -229,14 +229,17 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
     return candidateId;
   }
 
-  function provider(classification: string): ReconciliationModelProvider {
+  function provider(classification: string, normalizedValue?: string): ReconciliationModelProvider {
     return {
       providerId: "stage10k",
       invoke: async (request) => ({
         output: {
           classification,
           semanticIdentity: request.packet.semanticIdentity,
-          normalizedAssertion: request.packet.candidateAssertion,
+          normalizedAssertion:
+            normalizedValue === undefined
+              ? request.packet.candidateAssertion
+              : { value: normalizedValue },
           evidenceReferenceIds: [],
           conflict: classification === "CONFLICTING",
           uncertain: classification === "UNCERTAIN",
@@ -253,10 +256,11 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
   async function reconcile(
     candidateAssertionId: CandidateAssertionId,
     classification: string = "CHANGED",
+    normalizedValue?: string,
   ): Promise<ReconciliationId> {
     const result = await new ReconciliationService(
       reconciliationRepository,
-      new Map([["stage10k", provider(classification)]]),
+      new Map([["stage10k", provider(classification, normalizedValue)]]),
     ).reconcile(humanContext, {
       projectId,
       candidateAssertionId,
@@ -365,6 +369,7 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
 
   it("does not replay an observably stale semantic match and creates one monotonic successor", async () => {
     const identityId = await identity("stale-semantic-replay");
+    await reviewed(identityId, "reviewed basis");
     const firstReconciliation = await reconcile(
       await candidate(await submission(), identityId, 1, "same semantic work"),
     );
@@ -378,7 +383,7 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
       await submission(),
       identityId,
       1,
-      "same semantic work",
+      "same semantic work with different source formatting",
     );
     const observablyStale = await proposalService.getProposal(
       humanContext,
@@ -390,7 +395,11 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
     );
     expect(observablyStale.items[0]?.lifecycleState).toBe("STALE");
 
-    const successorReconciliation = await reconcile(successorCandidate);
+    const successorReconciliation = await reconcile(
+      successorCandidate,
+      "CHANGED",
+      "same semantic work",
+    );
     const successor = await proposalService.materializeFromReconciliation(
       workerContext,
       projectId,
@@ -528,7 +537,7 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
     expect(persisted?.state).toBe("STALE");
   });
 
-  it("creates one monotonic successor chain for competing newer reconciliations", async () => {
+  it("fails closed on a stale competing successor and creates one monotonic current successor", async () => {
     const identityId = await identity("successor");
     const firstId = await reconcile(await candidate(await submission(), identityId, 1, "first"));
     const first = await proposalService.materializeFromReconciliation(
@@ -538,10 +547,15 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
     );
     const secondId = await reconcile(await candidate(await submission(), identityId, 1, "second"));
     const thirdId = await reconcile(await candidate(await submission(), identityId, 1, "third"));
-    await Promise.all([
+    const competing = await Promise.allSettled([
       proposalService.materializeFromReconciliation(workerContext, projectId, secondId),
       proposalService.materializeFromReconciliation(workerContext, projectId, thirdId),
     ]);
+    expect(competing.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(competing.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect(String(competing.find((result) => result.status === "rejected")?.reason)).toContain(
+      "STALE_PROPOSAL_BASIS",
+    );
     const historical = await proposalService.getProposal(
       humanContext,
       projectId,
@@ -559,7 +573,7 @@ suite("Stage 10K Change Proposals PostgreSQL", () => {
         isolated.db,
       )
     ).rows[0];
-    expect(counts).toEqual({ current: "1", superseded: "2" });
+    expect(counts).toEqual({ current: "1", superseded: "1" });
   });
 
   it("fails closed on stale basis and known foreign Proposal IDs", async () => {
