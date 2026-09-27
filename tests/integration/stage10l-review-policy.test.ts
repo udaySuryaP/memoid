@@ -292,4 +292,68 @@ suite("Stage 10L review-policy evaluation and transitions", () => {
     ).rows[0];
     expect(row).toEqual({ decision: "MANUAL_REQUIRED", reasons: ["PROTECTED_CONFLICT"] });
   });
+
+  it("re-evaluates current automatic eligibility when AUTOMATIC transitions to MANUAL", async () => {
+    const currentItem = await seedItem("CHANGED", false, false, false, "automatic-to-manual");
+    const automaticId = await asActor(
+      workerActorId,
+      async (trx) =>
+        (
+          await sql<{
+            id: string;
+          }>`select memoid.evaluate_proposal_item_review_policy(${projectId}::uuid,${currentItem}::uuid)::text id`.execute(
+            trx,
+          )
+        ).rows[0]!.id,
+    );
+    expect(
+      (
+        await sql<{
+          decision: string;
+        }>`select decision from memoid.review_policy_evaluations where id=${automaticId}::uuid`.execute(
+          isolated.db,
+        )
+      ).rows[0]!.decision,
+    ).toBe("AUTOMATIC_ELIGIBLE");
+    await asActor(humanActorId, async (trx) => {
+      await sql`select * from memoid.change_project_review_policy(${projectId}::uuid,2,'MANUAL',null)`.execute(
+        trx,
+      );
+    });
+    const manual = (
+      await sql<{
+        decision: string;
+        version: string;
+        reasons: string[];
+      }>`select evaluation.decision,evaluation.project_policy_version::text version,evaluation.reason_codes reasons from memoid.review_policy_evaluations evaluation join memoid.review_policy_current_states state on state.evaluation_id=evaluation.id where evaluation.proposal_item_id=${currentItem}::uuid`.execute(
+        isolated.db,
+      )
+    ).rows[0];
+    expect(manual).toEqual({
+      decision: "MANUAL_REQUIRED",
+      version: "3",
+      reasons: ["PROJECT_POLICY_MANUAL"],
+    });
+  });
+
+  it("serializes two concurrent policy transitions without a lost update", async () => {
+    const transition = async (policy: "MANUAL" | "AUTOMATIC") =>
+      asActor(humanActorId, async (trx) =>
+        sql`select * from memoid.change_project_review_policy(${projectId}::uuid,3,${policy}::varchar,null)`.execute(
+          trx,
+        ),
+      );
+    const results = await Promise.allSettled([transition("AUTOMATIC"), transition("MANUAL")]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    const versions = (
+      await sql<{
+        count: string;
+        maximum: string;
+      }>`select count(*) filter(where version=4)::text count,max(version)::text maximum from memoid.project_review_policy_versions where project_id=${projectId}::uuid`.execute(
+        isolated.db,
+      )
+    ).rows[0];
+    expect(versions).toEqual({ count: "1", maximum: "4" });
+  });
 });

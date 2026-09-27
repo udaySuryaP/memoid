@@ -72,4 +72,24 @@ suite("Stage 10L migration 014", () => {
     );
     expect(up.error).toBeUndefined();
   });
+
+  it("refuses destructive rollback when immutable evaluation history is populated", async () => {
+    await sql`set session_replication_role=replica`.execute(isolated.db);
+    await sql`insert into memoid.review_policy_evaluations(workspace_id,project_id,id,proposal_item_id,project_policy_version,project_policy,decision,reason_codes,protected_checks,policy_engine_version,evaluated_basis_hash,operation_id,evaluated_by_actor_id) values('01999999-1000-7000-8000-000000000001','01999999-1000-7000-8000-000000000002','01999999-1000-7000-8000-000000000003','01999999-1000-7000-8000-000000000004',1,'MANUAL','MANUAL_REQUIRED','["PROJECT_POLICY_MANUAL"]'::jsonb,'{}'::jsonb,'review-policy.v1',sha256(convert_to('rollback-proof','UTF8')),'01999999-1000-7000-8000-000000000005','01999999-1000-7000-8000-000000000006')`.execute(
+      isolated.db,
+    );
+    await sql`set session_replication_role=origin`.execute(isolated.db);
+    const down = await createMigrator(isolated.db).migrateDown();
+    expect(String(down.error)).toContain("STAGE10L_ROLLBACK_REFUSED_POPULATED_POLICY_HISTORY");
+    expect(
+      (
+        await sql<{
+          count: string;
+        }>`select count(*)::text count from memoid.review_policy_evaluations`.execute(isolated.db)
+      ).rows[0]!.count,
+    ).toBe("1");
+    await sql`set session_replication_role=replica`.execute(isolated.db);
+    await sql`delete from memoid.review_policy_evaluations`.execute(isolated.db);
+    await sql`set session_replication_role=origin`.execute(isolated.db);
+  });
 });
