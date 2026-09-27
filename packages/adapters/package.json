@@ -9,6 +9,7 @@
     "./conflict-uncertainty": "./src/conflict-uncertainty.ts",
     "./reconciliation-model": "./src/reconciliation-model.ts",
     "./reconciliation": "./src/reconciliation.ts",
+    "./change-proposal": "./src/change-proposal.ts",
     "./github-source": "./src/github-source.ts",
     "./source-ingestion": "./src/source-ingestion.ts",
     "./source-authority": "./src/source-authority.ts",

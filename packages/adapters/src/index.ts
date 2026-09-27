@@ -18,6 +18,7 @@ export * from "./context-record.js";
 export * from "./conflict-uncertainty.js";
 export * from "./reconciliation-model.js";
 export * from "./reconciliation.js";
+export * from "./change-proposal.js";
 
 export interface GitHubAdapterDependencies {
   readonly app: App;

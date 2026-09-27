@@ -66,8 +66,10 @@ suite("Stage 10H Context Records PostgreSQL", () => {
 
   async function rollbackToContextBoundary() {
     const migrator = createMigrator(isolated.db);
-    const first = await migrator.migrateDown();
-    return first.error ? first : migrator.migrateDown();
+    let result = await migrator.migrateDown();
+    for (let laterMigration = 0; laterMigration < 3 && !result.error; laterMigration += 1)
+      result = await migrator.migrateDown();
+    return result;
   }
 
   beforeAll(async () => {

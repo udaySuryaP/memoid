@@ -544,6 +544,77 @@ export interface ModelInvocationAttemptsTable extends ScopedRow {
   invoked_at: Timestamp;
 }
 
+export interface ChangeProposalsTable extends ScopedRow {
+  id: Generated<string>;
+  grouping_version: string;
+  grouping_key: Hash;
+  submission_id: string;
+  scope_key: string;
+  facet_key: string;
+  operation_id: string;
+  created_by_actor_id: string;
+  created_at: Timestamp;
+}
+
+export interface ChangeProposalItemsTable extends ScopedRow {
+  id: Generated<string>;
+  proposal_id: string;
+  reconciliation_id: string;
+  candidate_assertion_id: string;
+  context_identity_id: string;
+  semantic_fingerprint: Hash;
+  semantic_identity: string;
+  reconciliation_class: "NEW" | "CHANGED" | "SUPERSEDED" | "CONFLICTING" | "OBSOLETE" | "UNCERTAIN";
+  normalized_assertion: Json;
+  current_context_record_id: string | null;
+  working_context_item_id: string;
+  evidence_reference_ids: JsonArray;
+  conflict_qualified: boolean;
+  uncertainty_qualified: boolean;
+  destructive: boolean;
+  current_context_version: Int8;
+  working_context_version: Int8;
+  authority_version: Int8;
+  evidence_frontier_version: Int8;
+  integrity_version: Int8;
+  engine_contract_version: string;
+  basis_hash: Hash;
+  created_at: Timestamp;
+}
+
+export interface ProposalCurrentStatesTable extends ScopedRow {
+  proposal_id: string;
+  lifecycle_state: "OPEN" | "STALE" | "SUPERSEDED";
+  successor_proposal_id: string | null;
+  reason: string | null;
+  version: Int8;
+  changed_at: Timestamp;
+}
+
+export interface ProposalItemCurrentStatesTable extends ScopedRow {
+  proposal_item_id: string;
+  lifecycle_state: "CURRENT" | "STALE" | "SUPERSEDED";
+  successor_item_id: string | null;
+  reason: string | null;
+  version: Int8;
+  changed_at: Timestamp;
+}
+
+export interface ProposalStateEventsTable extends ScopedRow {
+  id: Generated<string>;
+  target_kind: "PROPOSAL" | "ITEM";
+  proposal_id: string;
+  proposal_item_id: string | null;
+  from_state: string | null;
+  to_state: string;
+  reason: string;
+  successor_proposal_id: string | null;
+  successor_item_id: string | null;
+  operation_id: string;
+  actor_id: string;
+  occurred_at: Timestamp;
+}
+
 export interface ActorsTable {
   id: Generated<string>;
   workspace_id: string;
@@ -743,6 +814,11 @@ export interface MemoidDatabase {
   "memoid.reconciliation_records": ReconciliationRecordsTable;
   "memoid.reconciliation_current_states": ReconciliationCurrentStatesTable;
   "memoid.model_invocation_attempts": ModelInvocationAttemptsTable;
+  "memoid.change_proposals": ChangeProposalsTable;
+  "memoid.change_proposal_items": ChangeProposalItemsTable;
+  "memoid.proposal_current_states": ProposalCurrentStatesTable;
+  "memoid.proposal_item_current_states": ProposalItemCurrentStatesTable;
+  "memoid.proposal_state_events": ProposalStateEventsTable;
   "memoid.actors": ActorsTable;
   "memoid.operations": OperationsTable;
   "memoid.operation_attempts": OperationAttemptsTable;
