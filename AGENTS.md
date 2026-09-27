@@ -10,6 +10,9 @@ Before implementing or merging any product vertical, verify explicit authorizati
 - Stage 10G Source Authority inventory: `docs/architecture/source-authority.md`
 - Stage 10H Context records/provenance inventory: `docs/architecture/context-records-provenance.md`
 - Stage 10I Conflict/Uncertainty inventory: `docs/architecture/conflict-uncertainty.md`
+- Stage 10J reconciliation inventory: `docs/architecture/hybrid-reconciliation.md`
+- Stage 10K Change Proposal inventory: `docs/architecture/change-proposals-backlog.md`
+- Stage 10L review-policy inventory: `docs/architecture/review-policy-evaluation-transitions.md`
 - Consequential decisions and status: `docs/decisions/README.md`
 - Security boundaries and tests: `docs/security/foundation.md`
 - Provider boundaries: `docs/integrations/provider-boundaries.md`

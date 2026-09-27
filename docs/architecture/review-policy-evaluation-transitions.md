@@ -1,0 +1,15 @@
+# Review-policy evaluation and transitions
+
+Stage 10L evaluates how each current Change Proposal Item must be reviewed. It does not approve, reject, edit, defer, apply a Context Revision, mutate Reviewed Context, or resolve a Conflict/Uncertainty. Those trusted application responsibilities remain Stage 10M.
+
+Each Project continues to use the Stage 10D append-only `project_review_policy_versions` history. `MANUAL` is a hard upper bound: every item is `MANUAL_REQUIRED`. `AUTOMATIC` only permits `AUTOMATIC_ELIGIBLE` when the Stage 10K Proposal Item and its Stage 10J basis are current and no protected condition applies. Eligibility is a downstream precondition, never proof that Context was changed.
+
+`review_policy_evaluations` is immutable per-item history. Every row binds the Project policy value/version/effective selection, policy-engine version, Proposal basis hash, structured protected checks, bounded reason codes, Actor, Operation, and prior evaluation. `review_policy_current_states` is the guarded one-row-per-item projection. Its currentness predicate rechecks the effective Project policy, Stage 10K item lifecycle, and `proposal_item_basis_is_current`, which already covers reconciliation currency plus Reviewed/Working Context, Source Authority, Evidence frontier, and Conflict/Uncertainty integrity versions.
+
+Protected inputs are canonical structured facts: Conflict/Uncertainty/destructive flags and reconciliation classes, resolved Evidence references and default-ref metadata, and bounded Stage 10J reason codes for authority, security, topology, low-confidence, and branch-only qualification. Unknown or missing Evidence fails closed. No model is invoked and no free-form justification controls the decision.
+
+Policy transitions append a new Stage 10D version under a per-Project lock, require a matching expected version and a first-party human Actor, preserve old evaluations, audit old/new values and versions, and re-evaluate current items when the version is already effective. Future-effective versions are not used early. Currentness checks prevent an old AUTOMATIC decision from remaining actionable after MANUAL becomes effective.
+
+Evaluation is authoritative per item. Batch/Proposal evaluation retains mixed results: a Proposal is fully automatic-eligible only when every current item has a current `AUTOMATIC_ELIGIBLE` evaluation; any protected sibling leaves manual review visible. Evaluation retries replay the same immutable row for an identical policy/basis, while projection updates are version-guarded. Per-Project policy locking, per-item evaluation locking, Stage 10K basis checks, and read-time currentness fencing make policy/evaluation, frontier/authority, successor, and duplicate-worker races fail closed.
+
+Runtime roles receive read-only table access and narrowly scoped security-definer operations with fixed search paths. Project-scoped composite foreign keys, forced RLS, current security context, application capabilities, fresh authentication for policy changes, and Actor-kind checks reject cross-Project and external-client control attempts.

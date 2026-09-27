@@ -12,6 +12,7 @@ import { audit1aIntegrityCorrectionsMigration } from "./010-audit1a-integrity-co
 import { stage10iConflictUncertaintyMigration } from "./011-stage10i-conflict-uncertainty.js";
 import { stage10jHybridReconciliationMigration } from "./012-stage10j-hybrid-reconciliation.js";
 import { stage10kChangeProposalsBacklogMigration } from "./013-stage10k-change-proposals-backlog.js";
+import { stage10lReviewPolicyTransitionsMigration } from "./014-stage10l-review-policy-transitions.js";
 
 export class MemoidMigrationProvider implements MigrationProvider {
   public async getMigrations(): Promise<Record<string, Migration>> {
@@ -29,6 +30,7 @@ export class MemoidMigrationProvider implements MigrationProvider {
       "011_stage10i_conflict_uncertainty": stage10iConflictUncertaintyMigration,
       "012_stage10j_hybrid_reconciliation": stage10jHybridReconciliationMigration,
       "013_stage10k_change_proposals_backlog": stage10kChangeProposalsBacklogMigration,
+      "014_stage10l_review_policy_transitions": stage10lReviewPolicyTransitionsMigration,
     };
   }
 }
