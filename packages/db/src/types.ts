@@ -615,6 +615,29 @@ export interface ProposalStateEventsTable extends ScopedRow {
   occurred_at: Timestamp;
 }
 
+export interface ReviewPolicyEvaluationsTable extends ScopedRow {
+  id: Generated<string>;
+  proposal_item_id: string;
+  project_policy_version: Int8;
+  project_policy: "MANUAL" | "AUTOMATIC";
+  decision: "MANUAL_REQUIRED" | "AUTOMATIC_ELIGIBLE";
+  reason_codes: JSONColumnType<readonly string[]>;
+  protected_checks: Json;
+  policy_engine_version: string;
+  evaluated_basis_hash: Hash;
+  supersedes_evaluation_id: string | null;
+  operation_id: string;
+  evaluated_by_actor_id: string;
+  evaluated_at: Timestamp;
+}
+
+export interface ReviewPolicyCurrentStatesTable extends ScopedRow {
+  proposal_item_id: string;
+  evaluation_id: string;
+  version: GeneratedInt8;
+  updated_at: Timestamp;
+}
+
 export interface ActorsTable {
   id: Generated<string>;
   workspace_id: string;
@@ -819,6 +842,8 @@ export interface MemoidDatabase {
   "memoid.proposal_current_states": ProposalCurrentStatesTable;
   "memoid.proposal_item_current_states": ProposalItemCurrentStatesTable;
   "memoid.proposal_state_events": ProposalStateEventsTable;
+  "memoid.review_policy_evaluations": ReviewPolicyEvaluationsTable;
+  "memoid.review_policy_current_states": ReviewPolicyCurrentStatesTable;
   "memoid.actors": ActorsTable;
   "memoid.operations": OperationsTable;
   "memoid.operation_attempts": OperationAttemptsTable;

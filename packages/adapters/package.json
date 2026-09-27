@@ -10,6 +10,7 @@
     "./reconciliation-model": "./src/reconciliation-model.ts",
     "./reconciliation": "./src/reconciliation.ts",
     "./change-proposal": "./src/change-proposal.ts",
+    "./review-policy": "./src/review-policy.ts",
     "./github-source": "./src/github-source.ts",
     "./source-ingestion": "./src/source-ingestion.ts",
     "./source-authority": "./src/source-authority.ts",

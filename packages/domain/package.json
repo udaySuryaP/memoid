@@ -12,6 +12,7 @@
     "./conflict-uncertainty": "./src/conflict-uncertainty.ts",
     "./change-proposal": "./src/change-proposal.ts",
     "./reconciliation": "./src/reconciliation.ts",
+    "./review-policy": "./src/review-policy.ts",
     "./github-source": "./src/github-source.ts",
     "./identifiers": "./src/identifiers.ts",
     "./source-authority": "./src/source-authority.ts",

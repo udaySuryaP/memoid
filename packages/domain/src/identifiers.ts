@@ -18,6 +18,7 @@ export type ReconciliationId = OpaqueId<"ReconciliationId">;
 export type ModelInvocationId = OpaqueId<"ModelInvocationId">;
 export type ChangeProposalId = OpaqueId<"ChangeProposalId">;
 export type ChangeProposalItemId = OpaqueId<"ChangeProposalItemId">;
+export type ReviewPolicyEvaluationId = OpaqueId<"ReviewPolicyEvaluationId">;
 export type ContextIdentityId = OpaqueId<"ContextIdentityId">;
 export type ContextRecordId = OpaqueId<"ContextRecordId">;
 export type ContextRevisionId = OpaqueId<"ContextRevisionId">;

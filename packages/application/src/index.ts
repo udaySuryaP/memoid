@@ -8,6 +8,7 @@ export * from "./context-record.js";
 export * from "./conflict-uncertainty.js";
 export * from "./reconciliation.js";
 export * from "./change-proposal.js";
+export * from "./review-policy.js";
 
 export interface AuthenticatedIdentity {
   readonly providerKey: string;
